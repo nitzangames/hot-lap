@@ -1,7 +1,10 @@
-import { GAME_W, GAME_H, TILE } from './constants.js';
-import { generateTrack, buildTrackPath, buildWallPaths, DIR_VEC } from './track.js';
+import { GAME_W, GAME_H, TILE, FIXED_DT } from './constants.js';
+import { generateTrack, buildTrackPath, buildWallPaths, createWallBodies } from './track.js';
 import { Camera } from './camera.js';
-import { drawTrack, drawCar } from './renderer.js';
+import { drawTrack, drawCar, drawHUD } from './renderer.js';
+import { Car } from './car.js';
+import { Input } from './input.js';
+import { World, Vec2 } from '../physics2d/index.js';
 
 // ── DPR-aware canvas setup ────────────────────────────────────────────────────
 
@@ -10,21 +13,17 @@ const ctx = canvas.getContext('2d');
 const dpr = window.devicePixelRatio || 1;
 
 function resizeCanvas() {
-  // Scale canvas backing store to DPR
   canvas.width  = GAME_W * dpr;
   canvas.height = GAME_H * dpr;
 
-  // Fit canvas CSS size to viewport while maintaining 1080:1920 aspect ratio
   const viewAspect = window.innerWidth / window.innerHeight;
   const gameAspect = GAME_W / GAME_H;
 
   let cssW, cssH;
   if (viewAspect < gameAspect) {
-    // Viewport is taller relative to width — fit to width
     cssW = window.innerWidth;
     cssH = window.innerWidth / gameAspect;
   } else {
-    // Viewport is wider — fit to height
     cssH = window.innerHeight;
     cssW = window.innerHeight * gameAspect;
   }
@@ -32,12 +31,15 @@ function resizeCanvas() {
   canvas.style.width  = `${cssW}px`;
   canvas.style.height = `${cssH}px`;
 
-  // Scale all drawing operations so 1 unit = 1 game pixel (independent of DPR)
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
+
+// ── Physics world ─────────────────────────────────────────────────────────────
+
+const world = new World({ gravity: new Vec2(0, 0) });
 
 // ── Track generation ──────────────────────────────────────────────────────────
 
@@ -45,46 +47,81 @@ const seed = 42;
 const track = generateTrack(seed);
 const centerLine = buildTrackPath(track);
 const walls = buildWallPaths(centerLine);
+createWallBodies(world, walls);
 
-// ── Camera and start position ─────────────────────────────────────────────────
+// ── Car spawn ─────────────────────────────────────────────────────────────────
 
-// dirAngles: mapping from track dir constant to car angle
-// car forward = (sin(θ), -cos(θ)) in world space
-// DIR_N(0)→θ=0, DIR_E(1)→θ=π/2, DIR_S(2)→θ=π, DIR_W(3)→θ=-π/2
 const dirAngles = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
+const startTile = track.tiles[1]; // tile index 1 is 'start'
+const startAngle = dirAngles[startTile.dir];
+const startX = (startTile.gx + 0.5) * TILE;
+const startY = (startTile.gy + 0.5) * TILE;
 
-// Tile index 1 is the 'start' tile (index 0 is 'grid')
-const startTile = track.tiles[1];
-const startDir = startTile.dir;
-const startAngle = dirAngles[startDir];
+const car = new Car(world);
+car.spawn(startX, startY, startAngle);
 
-// Car world position: center of start tile
-const carX = (startTile.gx + 0.5) * TILE;
-const carY = (startTile.gy + 0.5) * TILE;
+// ── Input ─────────────────────────────────────────────────────────────────────
+
+const input = new Input(canvas);
+
+// ── Camera ────────────────────────────────────────────────────────────────────
 
 const camera = new Camera();
-camera.follow(carX, carY, startAngle);
 
-// ── Render loop ───────────────────────────────────────────────────────────────
+// ── Collision handling ────────────────────────────────────────────────────────
 
-function render() {
+world.onCollision = (a, b, contact) => {
+  const aIsWall = a.userData && a.userData.type === 'wall';
+  const bIsWall = b.userData && b.userData.type === 'wall';
+  const aIsCar  = a.userData && a.userData.type === 'car';
+  const bIsCar  = b.userData && b.userData.type === 'car';
+
+  if ((aIsCar && bIsWall) || (bIsCar && aIsWall)) {
+    car.onWallCollision(contact);
+  }
+};
+
+// ── Game loop ─────────────────────────────────────────────────────────────────
+
+let lastTime = performance.now();
+let accumulator = 0;
+
+function gameLoop(now) {
+  requestAnimationFrame(gameLoop);
+
+  let dt = (now - lastTime) / 1000;
+  lastTime = now;
+
+  // Cap dt to avoid spiral of death
+  if (dt > 1 / 30) dt = 1 / 30;
+
+  // Fixed timestep accumulator
+  accumulator += dt;
+  while (accumulator >= FIXED_DT) {
+    car.update(input.steering);
+    world.step(FIXED_DT);
+    car.postPhysicsUpdate();
+    accumulator -= FIXED_DT;
+  }
+
+  // ── Render ──────────────────────────────────────────────────────────────────
+
+  // Camera follows car (interpolated render position)
+  camera.follow(car.x, car.y, car.angle);
+
   // Clear with grass background
   ctx.fillStyle = '#4a7a2e';
   ctx.fillRect(0, 0, GAME_W, GAME_H);
 
-  // Apply camera transform
+  // World-space drawing
   camera.apply(ctx);
-
-  // Draw track
   drawTrack(ctx, track, walls, centerLine);
-
-  // Draw car at start position
-  drawCar(ctx, carX, carY, startAngle, '#e63030', '#222', 1);
-
-  // Restore camera transform
+  drawCar(ctx, car.x, car.y, car.angle, '#e63030', '#222', 1);
   camera.restore(ctx);
 
-  requestAnimationFrame(render);
+  // HUD (screen-space)
+  // Convert px/s to fake km/h: speed * 3.6 * 0.5
+  drawHUD(ctx, 0, null, car.speed * 3.6 * 0.5);
 }
 
-render();
+requestAnimationFrame(gameLoop);
