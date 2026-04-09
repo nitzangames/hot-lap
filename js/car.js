@@ -44,6 +44,7 @@ export class Car {
     if (!this.body || this.crashed) return;
 
     this.tickCount++;
+    this._wallHitThisTick = false;
 
     // 1. Apply steering — directly modify body angle
     this.body.angle += steering * TURN_RATE * FIXED_DT;
@@ -86,9 +87,11 @@ export class Car {
 
   /**
    * Called from the world collision callback when the car hits a wall.
+   * Uses _wallHitThisTick to prevent stacking from multiple solver iterations.
    */
   onWallCollision(contact) {
-    if (!this.body || this.crashed) return;
+    if (!this.body || this.crashed || this._wallHitThisTick) return;
+    this._wallHitThisTick = true;
 
     const angle = this.body.angle;
     // Forward direction

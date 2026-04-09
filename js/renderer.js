@@ -286,7 +286,7 @@ export function drawHUD(ctx, currentTime, bestTime, speed) {
   ctx.fillStyle = 'rgba(0,0,0,0.65)';
   ctx.fill();
 
-  const kph = Math.round((speed || 0) * 3.6);
+  const kph = Math.round(speed || 0);
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 44px monospace';
   ctx.textAlign = 'center';

@@ -148,10 +148,22 @@ function handleTap() {
   }
 }
 
-// Use pointerup for unified mouse/touch, but also handle touch for tap detection
+// Track pointer down position to distinguish taps from drags
+let pointerDownX = 0;
+let pointerDownY = 0;
+const TAP_THRESHOLD = 15; // max pixels moved to count as a tap
+
+canvas.addEventListener('pointerdown', (e) => {
+  pointerDownX = e.clientX;
+  pointerDownY = e.clientY;
+});
+
 canvas.addEventListener('pointerup', (e) => {
-  // Only treat short taps (no significant drag) as taps
-  handleTap();
+  const dx = e.clientX - pointerDownX;
+  const dy = e.clientY - pointerDownY;
+  if (Math.abs(dx) < TAP_THRESHOLD && Math.abs(dy) < TAP_THRESHOLD) {
+    handleTap();
+  }
 });
 
 // ── Initialize first track ────────────────────────────────────────────────────
@@ -256,7 +268,7 @@ function render() {
   // HUD (screen-space) — show during racing
   if (state === 'racing') {
     const bestTimeSec = ghost.bestTime !== null ? ghost.bestTime / 1000 : null;
-    drawHUD(ctx, gameState.raceTime / 1000, bestTimeSec, car.speed * 3.6 * 0.5);
+    drawHUD(ctx, gameState.raceTime / 1000, bestTimeSec, car.speed * 0.35);
   }
 
   // Overlays
