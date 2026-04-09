@@ -6,14 +6,14 @@ export const GAME_H = 1920;
 export const TILE = 512; // pixels per tile
 
 // Car dimensions
-export const CAR_W = 128;
-export const CAR_H = 282; // ~2.2:1 ratio
+export const CAR_W = 64;
+export const CAR_H = 141; // ~2.2:1 ratio
 
 // Car physics
-export const MAX_SPEED = 900;        // px/s at full speed
-export const ACCELERATION = 400;     // px/s² forward force
+export const MAX_SPEED = 1350;       // px/s at full speed
+export const ACCELERATION = 600;     // px/s² forward force
 export const TURN_RATE = 2.5;        // rad/s at full steering input
-export const TURN_SPEED_PENALTY = 0.6; // speed multiplier at max turn (0-1, lower = more penalty)
+export const TURN_SPEED_PENALTY = 0.35; // speed multiplier at max turn (0-1, lower = more penalty)
 export const LINEAR_DAMPING = 0.3;   // natural speed decay
 export const CAR_MASS = 1;
 export const CAR_RESTITUTION = 0.3;  // wall bounce
@@ -24,8 +24,8 @@ export const CRASH_ANGLE_THRESHOLD = 0.7; // radians (~40°) — above this angl
 export const WALL_SPEED_LOSS = 0.4;       // speed multiplier on glancing wall hit
 
 // Track generation
-export const MIN_TRACK_TILES = 40;   // minimum tiles for ~30s race
-export const MAX_TRACK_TILES = 55;
+export const MIN_TRACK_TILES = 30;
+export const MAX_TRACK_TILES = 40;
 export const WALL_THICKNESS = 8;     // visual wall thickness in px
 export const WALL_SEGMENTS_PER_CURVE = 8; // edge segments to approximate curve arcs
 

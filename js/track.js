@@ -120,70 +120,74 @@ function makeCurve(type, gx, gy, dir, sign, size) {
 export function generateTrack(seed) {
   // Tile type definitions with weights
   const tileTypes = [
-    { type: 'straight', weight: 35, size: 1 },
-    { type: 'tight', weight: 15, size: 1 },
-    { type: 'medium', weight: 25, size: 2 },
-    { type: 'gentle', weight: 25, size: 3 },
+    { type: 'straight', weight: 55, size: 1 },
+    { type: 'medium', weight: 30, size: 2 },
+    { type: 'gentle', weight: 15, size: 3 },
   ];
   const totalWeight = tileTypes.reduce((s, t) => s + t.weight, 0);
 
+  // All candidate tile builders for return-home phase
+  const allTileBuilders = [
+    (gx, gy, dir) => makeStraight(gx, gy, dir),
+    (gx, gy, dir) => makeCurve('medium', gx, gy, dir, 1, 2),
+    (gx, gy, dir) => makeCurve('medium', gx, gy, dir, -1, 2),
+    (gx, gy, dir) => makeCurve('gentle', gx, gy, dir, 1, 3),
+    (gx, gy, dir) => makeCurve('gentle', gx, gy, dir, -1, 3),
+  ];
+
   // Retry with different sub-seeds if track gets stuck
-  for (let attempt = 0; attempt < 20; attempt++) {
+  for (let attempt = 0; attempt < 50; attempt++) {
     const rng = mulberry32(seed + attempt * 997);
+    const targetLen = MIN_TRACK_TILES + Math.floor(rng() * (MAX_TRACK_TILES - MIN_TRACK_TILES + 1));
+    const returnBudget = 15; // max tiles for return-home phase
+    const freeGenTarget = targetLen - returnBudget;
     const occupied = new Set();
     const tiles = [];
 
-    function cellKey(x, y) {
-      return `${x},${y}`;
-    }
-
-    function isOccupied(x, y) {
-      return occupied.has(cellKey(x, y));
-    }
-
-    function markCells(cells) {
-      for (const c of cells) {
-        occupied.add(cellKey(c.x, c.y));
-      }
-    }
+    function cellKey(x, y) { return `${x},${y}`; }
+    function isOccupied(x, y) { return occupied.has(cellKey(x, y)); }
+    function markCells(cells) { for (const c of cells) occupied.add(cellKey(c.x, c.y)); }
 
     function canPlace(cells, exitGx, exitGy) {
-      for (const c of cells) {
-        if (isOccupied(c.x, c.y)) return false;
-      }
-      // Also check exit cell isn't occupied (avoid dead ends)
+      for (const c of cells) { if (isOccupied(c.x, c.y)) return false; }
       if (isOccupied(exitGx, exitGy)) return false;
       return true;
     }
 
-    // Place grid tile at origin heading South
+    // Can place cells without checking exit (for loop-closing tile)
+    function canPlaceCells(cells) {
+      for (const c of cells) { if (isOccupied(c.x, c.y)) return false; }
+      return true;
+    }
+
+    // --- Place grid (P1) tile then start/finish tile, heading South ---
     const gridTile = makeStraight(0, 0, DIR_S);
     gridTile.type = 'grid';
     tiles.push(gridTile);
     markCells(gridTile.cells);
 
-    // Place start/finish tile
-    let cx = gridTile.exitGx;
-    let cy = gridTile.exitGy;
-    let cdir = gridTile.exitDir;
-
-    const startTile = makeStraight(cx, cy, cdir);
+    const startTile = makeStraight(gridTile.exitGx, gridTile.exitGy, DIR_S);
     startTile.type = 'start';
     tiles.push(startTile);
     markCells(startTile.cells);
-    cx = startTile.exitGx;
-    cy = startTile.exitGy;
-    cdir = startTile.exitDir;
+
+    // Loop target: last tile must exit at grid tile entry = (0, 0) heading DIR_S
+    const targetGx = 0;
+    const targetGy = 0;
+    const targetDir = DIR_S;
+
+    let cx = startTile.exitGx;
+    let cy = startTile.exitGy;
+    let cdir = startTile.exitDir;
 
     let consecutiveStraights = 0;
     const maxIter = 500;
     let iter = 0;
 
-    // Generate random tiles
-    while (tiles.length < MAX_TRACK_TILES && iter < maxIter) {
+    // --- Phase 1: Free generation ---
+    while (tiles.length < freeGenTarget && iter < maxIter) {
       iter++;
 
-      // Pick a random tile type
       let r = rng() * totalWeight;
       let chosen = tileTypes[0];
       for (const tt of tileTypes) {
@@ -191,29 +195,20 @@ export function generateTrack(seed) {
         if (r <= 0) { chosen = tt; break; }
       }
 
-      // Enforce max 4 consecutive straights
-      if (chosen.type === 'straight' && consecutiveStraights >= 4) {
-        continue;
-      }
+      if (chosen.type === 'straight' && consecutiveStraights >= 4) continue;
 
-      // Try to place the tile
       let tile = null;
       if (chosen.type === 'straight') {
         const t = makeStraight(cx, cy, cdir);
-        if (canPlace(t.cells, t.exitGx, t.exitGy)) {
-          tile = t;
-        }
+        if (canPlace(t.cells, t.exitGx, t.exitGy)) tile = t;
       } else {
-        // Curve tile - try both turn directions
         const sign = rng() < 0.5 ? 1 : -1;
         const t1 = makeCurve(chosen.type, cx, cy, cdir, sign, chosen.size);
         if (canPlace(t1.cells, t1.exitGx, t1.exitGy)) {
           tile = t1;
         } else {
           const t2 = makeCurve(chosen.type, cx, cy, cdir, -sign, chosen.size);
-          if (canPlace(t2.cells, t2.exitGx, t2.exitGy)) {
-            tile = t2;
-          }
+          if (canPlace(t2.cells, t2.exitGx, t2.exitGy)) tile = t2;
         }
       }
 
@@ -224,31 +219,71 @@ export function generateTrack(seed) {
       cx = tile.exitGx;
       cy = tile.exitGy;
       cdir = tile.exitDir;
+      consecutiveStraights = tile.type === 'straight' ? consecutiveStraights + 1 : 0;
+    }
 
-      if (tile.type === 'straight') {
-        consecutiveStraights++;
-      } else {
-        consecutiveStraights = 0;
+    // --- Phase 2: Return home (greedy pathfinding) ---
+    // Score = Manhattan distance to target + direction penalty
+    function score(gx, gy, dir) {
+      const dist = Math.abs(gx - targetGx) + Math.abs(gy - targetGy);
+      // Bonus if direction faces toward target
+      const dx = targetGx - gx;
+      const dy = targetGy - gy;
+      const fwd = DIR_VEC[dir];
+      const dot = fwd.x * Math.sign(dx || 0) + fwd.y * Math.sign(dy || 0);
+      // Penalty if wrong direction
+      const dirPenalty = dir === targetDir ? 0 : (dot > 0 ? 1 : 3);
+      return dist + dirPenalty;
+    }
+
+    let loopClosed = false;
+    for (let ri = 0; ri < returnBudget; ri++) {
+      // Check if we can close the loop right now
+      // We need: exitGx = targetGx, exitGy = targetGy, exitDir = targetDir
+      // Try each tile builder and see if any closes the loop
+      let closingTile = null;
+      for (const builder of allTileBuilders) {
+        const t = builder(cx, cy, cdir);
+        if (t.exitGx === targetGx && t.exitGy === targetGy && t.exitDir === targetDir) {
+          if (canPlaceCells(t.cells)) {
+            closingTile = t;
+            break;
+          }
+        }
       }
 
-      // Check if we've reached minimum length - can stop
-      if (tiles.length >= MIN_TRACK_TILES) {
+      if (closingTile) {
+        tiles.push(closingTile);
+        markCells(closingTile.cells);
+        loopClosed = true;
         break;
       }
+
+      // Otherwise, pick the tile that gets us closest
+      let bestTile = null;
+      let bestScore = Infinity;
+      for (const builder of allTileBuilders) {
+        const t = builder(cx, cy, cdir);
+        if (!canPlace(t.cells, t.exitGx, t.exitGy)) continue;
+        const s = score(t.exitGx, t.exitGy, t.exitDir);
+        if (s < bestScore) {
+          bestScore = s;
+          bestTile = t;
+        }
+      }
+
+      if (!bestTile) break; // stuck
+
+      tiles.push(bestTile);
+      markCells(bestTile.cells);
+      cx = bestTile.exitGx;
+      cy = bestTile.exitGy;
+      cdir = bestTile.exitDir;
     }
 
-    // If we didn't reach a reasonable length, retry with different sub-seed
-    if (tiles.length < MIN_TRACK_TILES / 2) {
-      continue;
-    }
+    if (!loopClosed) continue; // retry with different seed
 
-    // Place finish tile
-    const finishTile = makeStraight(cx, cy, cdir);
-    finishTile.type = 'finish';
-    tiles.push(finishTile);
-    markCells(finishTile.cells);
-
-    // Compute grid bounds
+    // --- Compute grid bounds ---
     let minGx = Infinity, minGy = Infinity;
     let maxGx = -Infinity, maxGy = -Infinity;
     for (const tile of tiles) {
@@ -263,6 +298,7 @@ export function generateTrack(seed) {
     return {
       seed,
       tiles,
+      isLoop: true,
       minGx,
       minGy,
       gridWidth: maxGx - minGx + 1,
@@ -270,8 +306,7 @@ export function generateTrack(seed) {
     };
   }
 
-  // Fallback: should not normally reach here
-  throw new Error(`Failed to generate track for seed ${seed}`);
+  throw new Error(`Failed to generate loop track for seed ${seed}`);
 }
 
 // --- Center-line path ---
@@ -283,7 +318,7 @@ export function buildTrackPath(track) {
   for (const tile of track.tiles) {
     const { gx, gy, dir, type, sign, size } = tile;
 
-    if (type === 'straight' || type === 'grid' || type === 'start' || type === 'finish') {
+    if (type === 'straight' || type === 'grid' || type === 'start' || type === 'finish' || type === 'runoff') {
       // Straight: entry center and exit center
       const fwd = DIR_VEC[dir];
       const entryX = (gx + 0.5) * T - fwd.x * T * 0.5;
@@ -342,13 +377,25 @@ export function buildWallPaths(centerLine) {
   const left = [];
   const right = [];
 
-  for (let i = 0; i < centerLine.length; i++) {
+  const n = centerLine.length;
+  // Check if the path is a closed loop (first and last points are the same)
+  const isLoop = n > 2 &&
+    Math.abs(centerLine[0].x - centerLine[n - 1].x) < 1 &&
+    Math.abs(centerLine[0].y - centerLine[n - 1].y) < 1;
+
+  for (let i = 0; i < n; i++) {
     // Compute tangent direction at this point
     let tx, ty;
-    if (i === 0) {
+    if (isLoop) {
+      // For closed loops, wrap around at endpoints
+      const prev = (i - 1 + n) % n;
+      const next = (i + 1) % n;
+      tx = centerLine[next].x - centerLine[prev].x;
+      ty = centerLine[next].y - centerLine[prev].y;
+    } else if (i === 0) {
       tx = centerLine[1].x - centerLine[0].x;
       ty = centerLine[1].y - centerLine[0].y;
-    } else if (i === centerLine.length - 1) {
+    } else if (i === n - 1) {
       tx = centerLine[i].x - centerLine[i - 1].x;
       ty = centerLine[i].y - centerLine[i - 1].y;
     } else {
@@ -373,6 +420,12 @@ export function buildWallPaths(centerLine) {
     right.push({ x: p.x - nx * halfWidth, y: p.y - ny * halfWidth });
   }
 
+  // For closed loops, close the wall paths by appending the first point
+  if (isLoop) {
+    left.push({ x: left[0].x, y: left[0].y });
+    right.push({ x: right[0].x, y: right[0].y });
+  }
+
   return { left, right };
 }
 
@@ -385,6 +438,11 @@ export function createWallBodies(world, walls) {
     for (let i = 0; i < path.length - 1; i++) {
       const p0 = path[i];
       const p1 = path[i + 1];
+
+      // Skip zero-length segments (e.g. duplicate closing point)
+      const segDx = p1.x - p0.x;
+      const segDy = p1.y - p0.y;
+      if (segDx * segDx + segDy * segDy < 1) continue;
 
       // Midpoint becomes body position
       const mx = (p0.x + p1.x) / 2;

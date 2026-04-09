@@ -4,6 +4,7 @@ import { Camera } from './camera.js';
 import {
   drawTrack, drawCar, drawHUD,
   drawTitleScreen, drawCountdown, drawFinishScreen, drawCrashScreen,
+  drawSteeringWheel, drawMinimap,
 } from './renderer.js';
 import { Car } from './car.js';
 import { Input } from './input.js';
@@ -46,14 +47,41 @@ window.addEventListener('resize', resizeCanvas);
 
 const dirAngles = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
 
+// ── Seed encoding (number <-> alpha string) ──────────────────────────────────
+
+const ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // 24 chars (no I, O to avoid confusion)
+
+function seedToAlpha(num) {
+  num = Math.abs(num) >>> 0; // ensure positive 32-bit
+  let s = '';
+  do {
+    s = ALPHA[num % ALPHA.length] + s;
+    num = Math.floor(num / ALPHA.length);
+  } while (num > 0);
+  return s;
+}
+
+function alphaToSeed(str) {
+  let num = 0;
+  for (const ch of str.toUpperCase()) {
+    const idx = ALPHA.indexOf(ch);
+    if (idx < 0) continue;
+    num = num * ALPHA.length + idx;
+  }
+  return num;
+}
+
 // ── Track initialization ──────────────────────────────────────────────────────
 
 let world, track, centerLine, walls, wallBodies;
 let car, ghost, gameState;
 let currentSeed = Date.now();
+let currentSeedAlpha = seedToAlpha(currentSeed);
+let trackStartAngle = 0;
 
 function initTrack(seed) {
   currentSeed = seed;
+  currentSeedAlpha = seedToAlpha(seed);
 
   // Create a fresh physics world
   world = new World({ gravity: new Vec2(0, 0) });
@@ -95,11 +123,13 @@ function spawnCar() {
   }
 
   car = new Car(world);
-  const startTile = track.tiles[1]; // tile index 1 is 'start'
-  const startAngle = dirAngles[startTile.dir];
-  const startX = (startTile.gx + 0.5) * TILE;
-  const startY = (startTile.gy + 0.5) * TILE;
+  const gridTile = track.tiles[0]; // grid (P1) tile
+  const startAngle = dirAngles[gridTile.dir];
+  const startX = (gridTile.gx + 0.5) * TILE;
+  const startY = (gridTile.gy + 0.5) * TILE;
   car.spawn(startX, startY, startAngle);
+  trackStartAngle = startAngle;
+  hasLeftStart = false;
 }
 
 // ── Input ─────────────────────────────────────────────────────────────────────
@@ -110,15 +140,26 @@ const input = new Input(canvas);
 
 const camera = new Camera();
 
-// ── Finish line detection ─────────────────────────────────────────────────────
+// ── Finish line detection (circuit: cross start tile again after leaving it) ──
+
+let hasLeftStart = false;
 
 function checkFinishLine() {
-  const finishTile = track.tiles[track.tiles.length - 1];
-  const fx = (finishTile.gx + 0.5) * TILE;
-  const fy = (finishTile.gy + 0.5) * TILE;
-  const dx = car.physX - fx;
-  const dy = car.physY - fy;
+  const startTile = track.tiles[1]; // start/finish line tile (after grid)
+  const sx = (startTile.gx + 0.5) * TILE;
+  const sy = (startTile.gy + 0.5) * TILE;
+  const dx = car.physX - sx;
+  const dy = car.physY - sy;
   const dist = Math.sqrt(dx * dx + dy * dy);
+
+  if (!hasLeftStart) {
+    // Must leave the start tile area first
+    if (dist > TILE * 1.5) {
+      hasLeftStart = true;
+    }
+    return false;
+  }
+
   return dist < TILE * 0.4;
 }
 
@@ -138,12 +179,11 @@ function handleTap() {
     if (isDoubleTap) {
       // New track with new seed
       initTrack(Date.now());
-      gameState.startCountdown();
     } else {
-      // Retry same track
+      // Retry same track — go back to title
       ghost.resetRecording();
       spawnCar();
-      gameState.startCountdown();
+      gameState.reset();
     }
   }
 }
@@ -197,6 +237,10 @@ function gameLoop(now) {
 
 // ── Fixed update (per physics tick) ───────────────────────────────────────────
 
+let finishDelayTimer = 0;
+const FINISH_DELAY = 0.5; // seconds before showing finish screen
+let finishPreviousBest = null;
+
 function fixedUpdate() {
   const state = gameState.state;
 
@@ -225,8 +269,23 @@ function fixedUpdate() {
 
     // Check finish line
     if (checkFinishLine()) {
-      const previousBest = ghost.bestTime;
-      gameState.finish(previousBest);
+      finishPreviousBest = ghost.bestTime;
+      gameState.state = 'finishing';
+      finishDelayTimer = 0;
+    }
+  } else if (state === 'finishing') {
+    // Car keeps driving during delay
+    car.update(input.steering);
+    world.step(FIXED_DT);
+    car.postPhysicsUpdate();
+
+    // Keep recording ghost
+    ghost.record(car.physX, car.physY, car.physAngle);
+    ghost.advancePlayback();
+
+    finishDelayTimer += FIXED_DT;
+    if (finishDelayTimer >= FINISH_DELAY) {
+      gameState.finish(finishPreviousBest);
       const isNew = ghost.saveIfBest(gameState.raceTime);
       gameState.isNewRecord = isNew;
     }
@@ -253,7 +312,7 @@ function render() {
   drawTrack(ctx, track, walls, centerLine);
 
   // Ghost car (draw behind player)
-  if (state === 'racing' || state === 'countdown') {
+  if (state === 'racing' || state === 'countdown' || state === 'finishing') {
     const ghostFrame = ghost.getGhostFrame();
     if (ghostFrame) {
       drawCar(ctx, ghostFrame.x, ghostFrame.y, ghostFrame.angle, '#3366cc', '#4477dd', GHOST_ALPHA);
@@ -265,20 +324,31 @@ function render() {
 
   camera.restore(ctx);
 
-  // HUD (screen-space) — show during racing
-  if (state === 'racing') {
+  // Minimap and speed — always show
+  drawMinimap(ctx, track, centerLine, car.physX, car.physY, car.speed * 0.35, trackStartAngle);
+
+  // HUD timer — show during racing and finishing
+  if (state === 'racing' || state === 'finishing') {
     const bestTimeSec = ghost.bestTime !== null ? ghost.bestTime / 1000 : null;
-    drawHUD(ctx, gameState.raceTime / 1000, bestTimeSec, car.speed * 0.35);
+    drawHUD(ctx, gameState.raceTime / 1000, bestTimeSec, car.speed * 0.35, currentSeedAlpha);
+
+    // Steering wheel (only while dragging)
+    if (input.dragging) {
+      drawSteeringWheel(ctx, input.dragScreenX, input.dragScreenY, input.steering);
+    }
   }
 
   // Overlays
   if (state === 'title') {
-    drawTitleScreen(ctx);
+    drawTitleScreen(ctx, currentSeedAlpha);
   } else if (state === 'countdown') {
     drawCountdown(ctx, gameState.countdownNumber);
+  } else if (state === 'racing' && gameState.raceTime < 500) {
+    // Show lights-off briefly after race starts
+    drawCountdown(ctx, 0);
   } else if (state === 'finished') {
     const bestTimeSec = ghost.bestTime !== null ? ghost.bestTime / 1000 : null;
-    drawHUD(ctx, gameState.raceTime / 1000, bestTimeSec, 0);
+    drawHUD(ctx, gameState.raceTime / 1000, bestTimeSec, 0, currentSeedAlpha);
     drawFinishScreen(
       ctx,
       gameState.raceTime / 1000,

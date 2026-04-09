@@ -1,0 +1,141 @@
+<h2>4 Cars Side by Side in 512px Track</h2>
+<p class="subtitle">Each car is 128px wide. Track is 512px = exactly 4 car widths.</p>
+
+<div class="cards">
+  <div class="card" data-choice="check" onclick="toggleSelect(this)" style="max-width:500px;margin:0 auto;">
+    <div class="card-image">
+      <canvas id="mockCars" width="512" height="400" style="width:100%;height:auto;border-radius:6px;"></canvas>
+    </div>
+    <div class="card-body">
+      <h3>128px car x 4 = 512px track</h3>
+      <p>The car fills exactly 1/4 of the track width. No gap between cars shown here.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const c = document.getElementById('mockCars');
+  const ctx = c.getContext('2d');
+  const w = 512, h = 400;
+
+  // Asphalt
+  ctx.fillStyle = '#3d3d3d';
+  ctx.fillRect(0, 0, w, h);
+  for (let i = 0; i < 400; i++) {
+    const g = 50 + Math.random() * 22;
+    ctx.fillStyle = `rgba(${g},${g},${g},0.12)`;
+    ctx.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+  }
+
+  // Walls
+  ctx.fillStyle = '#777';
+  ctx.fillRect(0, 0, 6, h);
+  ctx.fillRect(w - 6, 0, 6, h);
+  ctx.fillStyle = '#999';
+  ctx.fillRect(0, 0, 2, h);
+  ctx.fillRect(w - 2, 0, 2, h);
+
+  // Draw flat formula car
+  function drawCar(cx, cy, carW, color, wingColor) {
+    ctx.save();
+    ctx.translate(cx, cy);
+
+    const carH = carW * 2.2;
+    const tireW = carW * 0.16;
+    const tireH = carW * 0.42;
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath();
+    ctx.ellipse(2, 2, carW*0.5, carH*0.45, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // Rear tires
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(-carW/2 - tireW/2, carH*0.08, tireW, tireH);
+    ctx.fillRect(carW/2 - tireW/2, carH*0.08, tireW, tireH);
+
+    // Front tires
+    ctx.fillRect(-carW/2 - tireW/2, -carH*0.35, tireW, tireH * 0.75);
+    ctx.fillRect(carW/2 - tireW/2, -carH*0.35, tireW, tireH * 0.75);
+
+    // Rear wing
+    ctx.fillStyle = wingColor;
+    ctx.fillRect(-carW*0.48, carH*0.32, carW*0.96, carW*0.08);
+
+    // Front wing
+    ctx.fillRect(-carW*0.48, -carH*0.44, carW*0.96, carW*0.06);
+
+    // Body
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(-carW*0.08, -carH*0.42);
+    ctx.lineTo(carW*0.08, -carH*0.42);
+    ctx.lineTo(carW*0.28, -carH*0.2);
+    ctx.lineTo(carW*0.35, 0);
+    ctx.lineTo(carW*0.35, carH*0.3);
+    ctx.lineTo(-carW*0.35, carH*0.3);
+    ctx.lineTo(-carW*0.35, 0);
+    ctx.lineTo(-carW*0.28, -carH*0.2);
+    ctx.closePath();
+    ctx.fill();
+
+    // Sidepods
+    const darker = darken(color, 25);
+    ctx.fillStyle = darker;
+    ctx.fillRect(-carW*0.38, -carH*0.02, carW*0.1, carH*0.2);
+    ctx.fillRect(carW*0.28, -carH*0.02, carW*0.1, carH*0.2);
+
+    // Cockpit
+    ctx.fillStyle = '#1a1a2a';
+    ctx.fillRect(-carW*0.12, -carH*0.14, carW*0.24, carH*0.16);
+
+    // Air intake
+    ctx.fillStyle = '#222';
+    ctx.fillRect(-carW*0.06, -carH*0.22, carW*0.12, carW*0.1);
+
+    ctx.restore();
+  }
+
+  function darken(hex, amt) {
+    let r = parseInt(hex.slice(1,3),16) - amt;
+    let g = parseInt(hex.slice(3,5),16) - amt;
+    let b = parseInt(hex.slice(5,7),16) - amt;
+    return `rgb(${Math.max(0,r)},${Math.max(0,g)},${Math.max(0,b)})`;
+  }
+
+  // 4 cars at 128px wide, centered in each quarter of 512px
+  const carW = 128;
+  const cy = h / 2;
+
+  drawCar(carW * 0.5, cy, carW, '#cc1111', '#dd3333');
+  drawCar(carW * 1.5, cy, carW, '#1188cc', '#2299dd');
+  drawCar(carW * 2.5, cy, carW, '#22aa44', '#33bb55');
+  drawCar(carW * 3.5, cy, carW, '#cc8811', '#ddaa33');
+
+  // Divider lines showing 128px sections
+  ctx.strokeStyle = 'rgba(255,255,200,0.5)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([6, 4]);
+  for (let i = 1; i < 4; i++) {
+    ctx.beginPath();
+    ctx.moveTo(i * carW, 0);
+    ctx.lineTo(i * carW, h);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // Labels
+  ctx.fillStyle = 'rgba(255,255,200,0.8)';
+  ctx.font = 'bold 13px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('128px', carW * 0.5, h - 12);
+  ctx.fillText('128px', carW * 1.5, h - 12);
+  ctx.fillText('128px', carW * 2.5, h - 12);
+  ctx.fillText('128px', carW * 3.5, h - 12);
+
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText('512px track width', w / 2, 20);
+})();
+</script>

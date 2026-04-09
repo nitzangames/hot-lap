@@ -1,0 +1,36 @@
+[2026-04-09T16:49:15.435Z] Uncaught ReferenceError: finishTile is not defined
+  at http://localhost:8082/js/track.js:261:14
+ReferenceError: finishTile is not defined
+    at generateTrack (http://localhost:8082/js/track.js:261:14)
+    at initTrack (http://localhost:8082/js/main.js:64:11)
+    at http://localhost:8082/js/main.js:172:1
+[2026-04-09T16:50:22.554Z] Uncaught ReferenceError: finishTile is not defined
+  at http://localhost:8082/js/track.js:261:14
+ReferenceError: finishTile is not defined
+    at generateTrack (http://localhost:8082/js/track.js:261:14)
+    at initTrack (http://localhost:8082/js/main.js:64:11)
+    at http://localhost:8082/js/main.js:172:1
+[2026-04-09T17:42:00.401Z] Uncaught Error: Failed to generate loop track for seed 1775756520392
+  at http://localhost:8082/js/track.js:309:9
+Error: Failed to generate loop track for seed 1775756520392
+    at generateTrack (http://localhost:8082/js/track.js:309:9)
+    at initTrack (http://localhost:8082/js/main.js:64:11)
+    at http://localhost:8082/js/main.js:184:1
+[2026-04-09T17:45:05.016Z] Uncaught Error: Failed to generate loop track for seed 1775756705007
+  at http://localhost:8082/js/track.js:309:9
+Error: Failed to generate loop track for seed 1775756705007
+    at generateTrack (http://localhost:8082/js/track.js:309:9)
+    at initTrack (http://localhost:8082/js/main.js:64:11)
+    at http://localhost:8082/js/main.js:184:1
+[2026-04-09T17:52:39.826Z] Uncaught Error: Failed to generate loop track for seed 1775757159818
+  at http://localhost:8082/js/track.js:309:9
+Error: Failed to generate loop track for seed 1775757159818
+    at generateTrack (http://localhost:8082/js/track.js:309:9)
+    at initTrack (http://localhost:8082/js/main.js:90:11)
+    at http://localhost:8082/js/main.js:210:1
+[2026-04-09T18:03:22.193Z] Uncaught Error: Failed to generate loop track for seed 1775757802181
+  at http://localhost:8082/js/track.js:309:9
+Error: Failed to generate loop track for seed 1775757802181
+    at generateTrack (http://localhost:8082/js/track.js:309:9)
+    at initTrack (http://localhost:8082/js/main.js:90:11)
+    at http://localhost:8082/js/main.js:211:1

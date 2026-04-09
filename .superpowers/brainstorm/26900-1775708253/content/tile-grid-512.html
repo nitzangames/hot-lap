@@ -1,0 +1,263 @@
+<h2>512px Tiles, 128px Car — 1080x1920 Screen</h2>
+<p class="subtitle">Track centered on screen. Grid lines show tile boundaries.</p>
+
+<div class="cards">
+  <div class="card" data-choice="512" onclick="toggleSelect(this)" style="max-width:360px;margin:0 auto;">
+    <div class="card-image">
+      <canvas id="mock512" width="324" height="576" style="width:100%;height:auto;border-radius:6px;"></canvas>
+    </div>
+    <div class="card-body">
+      <h3>512px tiles — ~2.1 across, ~3.75 down</h3>
+      <p>Car is 128px (25% of tile). Track centered on screen.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const c = document.getElementById('mock512');
+  const ctx = c.getContext('2d');
+  const cw = 324, ch = 576;
+  const screenW = 1080, screenH = 1920;
+  const scale = cw / screenW;
+  const tileSize = 512;
+  const ts = tileSize * scale;
+  const wallThick = 6 * scale;
+  const curbWidth = 10 * scale;
+
+  // Background grass
+  ctx.fillStyle = '#4a7a2e';
+  ctx.fillRect(0, 0, cw, ch);
+  for (let i = 0; i < 400; i++) {
+    ctx.fillStyle = `rgba(${35+Math.random()*25}, ${70+Math.random()*45}, ${15+Math.random()*15}, 0.2)`;
+    ctx.fillRect(Math.random() * cw, Math.random() * ch, 2, 3);
+  }
+
+  // Track is centered: find the pixel center
+  const trackCenterX = cw / 2;
+  const trackLeft = trackCenterX - ts / 2;
+  const trackRight = trackCenterX + ts / 2;
+
+  // Draw tile grid (faint, full screen)
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = 1;
+  const gridOffsetX = trackLeft % ts;
+  const gridOffsetY = 0;
+  for (let x = gridOffsetX; x <= cw; x += ts) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, ch); ctx.stroke();
+  }
+  for (let y = gridOffsetY; y <= ch; y += ts) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cw, y); ctx.stroke();
+  }
+
+  // Draw asphalt for the full height (straight track, centered)
+  ctx.fillStyle = '#3d3d3d';
+  ctx.fillRect(trackLeft, 0, ts, ch);
+
+  // Asphalt noise
+  for (let i = 0; i < 600; i++) {
+    const g = 50 + Math.random() * 22;
+    ctx.fillStyle = `rgba(${g},${g},${g},0.12)`;
+    ctx.fillRect(trackLeft + Math.random() * ts, Math.random() * ch, 2, 2);
+  }
+
+  // Center dashes
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = 2 * scale;
+  ctx.setLineDash([16 * scale, 12 * scale]);
+  ctx.beginPath();
+  ctx.moveTo(trackCenterX, 0);
+  ctx.lineTo(trackCenterX, ch);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Walls — concrete barriers on both sides
+  // Left wall
+  ctx.fillStyle = '#777';
+  ctx.fillRect(trackLeft - wallThick, 0, wallThick, ch);
+  ctx.fillStyle = '#999';
+  ctx.fillRect(trackLeft - wallThick, 0, 1.5 * scale, ch);
+  // Wall segment lines
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 0.5;
+  for (let y = 0; y < ch; y += 20 * scale) {
+    ctx.beginPath();
+    ctx.moveTo(trackLeft - wallThick, y);
+    ctx.lineTo(trackLeft, y);
+    ctx.stroke();
+  }
+
+  // Right wall
+  ctx.fillStyle = '#777';
+  ctx.fillRect(trackRight, 0, wallThick, ch);
+  ctx.fillStyle = '#999';
+  ctx.fillRect(trackRight + wallThick - 1.5 * scale, 0, 1.5 * scale, ch);
+  ctx.strokeStyle = '#555';
+  for (let y = 0; y < ch; y += 20 * scale) {
+    ctx.beginPath();
+    ctx.moveTo(trackRight, y);
+    ctx.lineTo(trackRight + wallThick, y);
+    ctx.stroke();
+  }
+
+  // Curbs on a corner section (top third of screen)
+  const curbTop = 0;
+  const curbBot = ch * 0.33;
+  for (let y = curbTop; y < curbBot; y += 8 * scale) {
+    const idx = Math.floor((y - curbTop) / (8 * scale));
+    ctx.fillStyle = idx % 2 === 0 ? '#cc2222' : '#eeeeee';
+    // Inside left curb
+    ctx.fillRect(trackLeft, y, curbWidth, 8 * scale);
+    // Inside right curb
+    ctx.fillRect(trackRight - curbWidth, y, curbWidth, 8 * scale);
+  }
+
+  // Tire marks
+  ctx.strokeStyle = 'rgba(25,25,25,0.15)';
+  ctx.lineWidth = 3 * scale;
+  ctx.beginPath();
+  ctx.moveTo(trackCenterX - 20 * scale, ch);
+  ctx.quadraticCurveTo(trackCenterX - 30 * scale, ch * 0.5, trackCenterX - 15 * scale, ch * 0.1);
+  ctx.stroke();
+
+  // --- Flat formula car (128px wide in game coords) ---
+  const carW = 128 * scale;
+  const carH = carW * 2.2;
+  const carX = trackCenterX;
+  const carY = ch * 0.6;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.beginPath();
+  ctx.ellipse(carX + 2*scale, carY + 2*scale, carW*0.5, carH*0.45, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Rear tires
+  const tireW = carW * 0.16;
+  const tireH = carW * 0.42;
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(carX - carW/2 - tireW/2, carY + carH*0.08, tireW, tireH);
+  ctx.fillRect(carX + carW/2 - tireW/2, carY + carH*0.08, tireW, tireH);
+
+  // Front tires
+  ctx.fillRect(carX - carW/2 - tireW/2, carY - carH*0.35, tireW, tireH * 0.75);
+  ctx.fillRect(carX + carW/2 - tireW/2, carY - carH*0.35, tireW, tireH * 0.75);
+
+  // Rear wing
+  ctx.fillStyle = '#dd3333';
+  ctx.fillRect(carX - carW*0.48, carY + carH*0.32, carW*0.96, carW*0.08);
+
+  // Front wing
+  ctx.fillRect(carX - carW*0.48, carY - carH*0.44, carW*0.96, carW*0.06);
+
+  // Body
+  ctx.fillStyle = '#cc1111';
+  ctx.beginPath();
+  ctx.moveTo(carX - carW*0.08, carY - carH*0.42);
+  ctx.lineTo(carX + carW*0.08, carY - carH*0.42);
+  ctx.lineTo(carX + carW*0.28, carY - carH*0.2);
+  ctx.lineTo(carX + carW*0.35, carY);
+  ctx.lineTo(carX + carW*0.35, carY + carH*0.3);
+  ctx.lineTo(carX - carW*0.35, carY + carH*0.3);
+  ctx.lineTo(carX - carW*0.35, carY);
+  ctx.lineTo(carX - carW*0.28, carY - carH*0.2);
+  ctx.closePath();
+  ctx.fill();
+
+  // Sidepods
+  ctx.fillStyle = '#aa0e0e';
+  ctx.fillRect(carX - carW*0.38, carY - carH*0.02, carW*0.1, carH*0.2);
+  ctx.fillRect(carX + carW*0.28, carY - carH*0.02, carW*0.1, carH*0.2);
+
+  // Cockpit
+  ctx.fillStyle = '#1a1a2a';
+  ctx.fillRect(carX - carW*0.12, carY - carH*0.14, carW*0.24, carH*0.16);
+
+  // Air intake
+  ctx.fillStyle = '#222';
+  ctx.fillRect(carX - carW*0.06, carY - carH*0.22, carW*0.12, carW*0.1);
+
+  // --- Ghost car (ahead) ---
+  ctx.save();
+  ctx.globalAlpha = 0.3;
+  const gx = trackCenterX - 15 * scale;
+  const gy = ch * 0.25;
+
+  // Ghost rear tires
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(gx - carW/2 - tireW/2, gy + carH*0.08, tireW, tireH);
+  ctx.fillRect(gx + carW/2 - tireW/2, gy + carH*0.08, tireW, tireH);
+  ctx.fillRect(gx - carW/2 - tireW/2, gy - carH*0.35, tireW, tireH * 0.75);
+  ctx.fillRect(gx + carW/2 - tireW/2, gy - carH*0.35, tireW, tireH * 0.75);
+
+  // Ghost wings
+  ctx.fillStyle = '#4477dd';
+  ctx.fillRect(gx - carW*0.48, gy + carH*0.32, carW*0.96, carW*0.08);
+  ctx.fillRect(gx - carW*0.48, gy - carH*0.44, carW*0.96, carW*0.06);
+
+  // Ghost body
+  ctx.fillStyle = '#3366cc';
+  ctx.beginPath();
+  ctx.moveTo(gx - carW*0.08, gy - carH*0.42);
+  ctx.lineTo(gx + carW*0.08, gy - carH*0.42);
+  ctx.lineTo(gx + carW*0.28, gy - carH*0.2);
+  ctx.lineTo(gx + carW*0.35, gy);
+  ctx.lineTo(gx + carW*0.35, gy + carH*0.3);
+  ctx.lineTo(gx - carW*0.35, gy + carH*0.3);
+  ctx.lineTo(gx - carW*0.35, gy);
+  ctx.lineTo(gx - carW*0.28, gy - carH*0.2);
+  ctx.closePath();
+  ctx.fill();
+
+  // Ghost sidepods
+  ctx.fillStyle = '#2a55aa';
+  ctx.fillRect(gx - carW*0.38, gy - carH*0.02, carW*0.1, carH*0.2);
+  ctx.fillRect(gx + carW*0.28, gy - carH*0.02, carW*0.1, carH*0.2);
+
+  // Ghost cockpit
+  ctx.fillStyle = '#1a1a2a';
+  ctx.fillRect(gx - carW*0.12, gy - carH*0.14, carW*0.24, carH*0.16);
+
+  ctx.restore();
+
+  // --- HUD ---
+  ctx.shadowColor = '#000';
+  ctx.shadowBlur = 4;
+  ctx.textAlign = 'center';
+
+  // Timer
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.beginPath();
+  ctx.roundRect(trackCenterX - 55 * scale, 8 * scale, 110 * scale, 26 * scale, 5 * scale);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${14 * scale}px monospace`;
+  ctx.fillText('00:42.31', trackCenterX, 26 * scale);
+
+  // Best
+  ctx.fillStyle = 'rgba(100,180,255,0.8)';
+  ctx.font = `${10 * scale}px monospace`;
+  ctx.fillText('BEST  00:41.87', trackCenterX, 42 * scale);
+
+  // Speed
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.beginPath();
+  ctx.roundRect(trackCenterX - 42 * scale, ch - 34 * scale, 84 * scale, 24 * scale, 5 * scale);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${12 * scale}px monospace`;
+  ctx.fillText('287 km/h', trackCenterX, ch - 17 * scale);
+
+  ctx.shadowBlur = 0;
+
+  // Dimension labels
+  ctx.fillStyle = 'rgba(255,255,200,0.7)';
+  ctx.font = `${9 * scale}px sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.fillText('512px tile width', trackLeft + 3*scale, ch - 8*scale);
+
+  // Car width label
+  ctx.textAlign = 'center';
+  ctx.fillText('128px car', carX, carY + carH*0.5 + 14*scale);
+})();
+</script>

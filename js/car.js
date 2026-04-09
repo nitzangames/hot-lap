@@ -1,4 +1,4 @@
-import { Vec2, Rectangle, Body } from '../physics2d/index.js';
+import { Vec2, Circle, Body } from '../physics2d/index.js';
 import {
   CAR_W, CAR_H, CAR_MASS, CAR_RESTITUTION, CAR_FRICTION,
   MAX_SPEED, ACCELERATION, TURN_RATE, TURN_SPEED_PENALTY,
@@ -19,7 +19,7 @@ export class Car {
    * Create the car's physics body and add it to the world.
    */
   spawn(x, y, angle) {
-    const shape = new Rectangle(CAR_W, CAR_H);
+    const shape = new Circle(CAR_W * 0.5);
     this.body = new Body({
       shape,
       position: new Vec2(x, y),

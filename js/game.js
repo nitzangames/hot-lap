@@ -32,8 +32,9 @@ export class GameState {
       this._countdownAccumulator -= 1;
       this.countdownNumber--;
     }
-    if (this.countdownNumber < 0) {
+    if (this.countdownNumber <= 0) {
       this.state = 'racing';
+      this.countdownNumber = 0; // keep at 0 for "lights off" display
       return true;
     }
     return false;

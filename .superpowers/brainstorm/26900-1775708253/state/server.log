@@ -1,0 +1,4 @@
+{"type":"server-started","port":54855,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:54855","screen_dir":"/Users/nitzanwilnai/Programming/Claude/JSGames/RacingGame2D/.superpowers/brainstorm/26900-1775708253/content","state_dir":"/Users/nitzanwilnai/Programming/Claude/JSGames/RacingGame2D/.superpowers/brainstorm/26900-1775708253/state"}
+{"type":"screen-added","file":"/Users/nitzanwilnai/Programming/Claude/JSGames/RacingGame2D/.superpowers/brainstorm/26900-1775708253/content/tile-grid-512.html"}
+{"type":"screen-added","file":"/Users/nitzanwilnai/Programming/Claude/JSGames/RacingGame2D/.superpowers/brainstorm/26900-1775708253/content/four-cars.html"}
+{"type":"server-stopped","reason":"idle timeout"}

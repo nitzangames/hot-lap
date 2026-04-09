@@ -76,7 +76,7 @@ export function drawTrack(ctx, track, walls, centerLine) {
     ctx.restore();
   }
 
-  // 3. Grid tile — pole position marker
+  // 3. Start tile — pole position marker
   for (const tile of track.tiles) {
     if (tile.type !== 'grid') continue;
     const { gx, gy } = tile;
@@ -106,6 +106,7 @@ export function drawTrack(ctx, track, walls, centerLine) {
     for (let i = 1; i < centerLine.length; i++) {
       ctx.lineTo(centerLine[i].x, centerLine[i].y);
     }
+    ctx.closePath();
     ctx.stroke();
     ctx.restore();
   }
@@ -253,7 +254,7 @@ export function drawCar(ctx, x, y, angle, bodyColor = '#e63030', wingColor = '#2
 
 // ── HUD rendering ─────────────────────────────────────────────────────────────
 
-export function drawHUD(ctx, currentTime, bestTime, speed) {
+export function drawHUD(ctx, currentTime, bestTime, speed, seed) {
   const CX = GAME_W / 2;
   const pillW = 320;
   const pillH = 72;
@@ -280,25 +281,21 @@ export function drawHUD(ctx, currentTime, bestTime, speed) {
     ctx.fillText('BEST  ' + formatTime(bestTime), CX, bestY);
   }
 
-  // Speed pill — bottom center
-  const speedY = GAME_H - 80;
-  pillRect(ctx, CX, speedY, pillW, pillH, r);
-  ctx.fillStyle = 'rgba(0,0,0,0.65)';
-  ctx.fill();
-
-  const kph = Math.round(speed || 0);
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 44px monospace';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(`${kph} km/h`, CX, speedY);
+  // Seed — top left
+  if (seed !== undefined) {
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.font = '20px monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText('seed: ' + seed, 16, 16);
+  }
 
   ctx.restore();
 }
 
 // ── Overlay screens ───────────────────────────────────────────────────────────
 
-export function drawTitleScreen(ctx) {
+export function drawTitleScreen(ctx, seed) {
   ctx.save();
   ctx.fillStyle = 'rgba(0,0,0,0.72)';
   ctx.fillRect(0, 0, GAME_W, GAME_H);
@@ -313,19 +310,71 @@ export function drawTitleScreen(ctx) {
   ctx.font = '52px sans-serif';
   ctx.fillText('Tap to Race', GAME_W / 2, GAME_H * 0.55);
 
+  ctx.fillStyle = '#666';
+  ctx.font = '24px sans-serif';
+  ctx.fillText('v0.14 — seed: ' + seed, GAME_W / 2, GAME_H * 0.92);
+
   ctx.restore();
 }
 
 export function drawCountdown(ctx, number) {
   ctx.save();
-  ctx.fillStyle = 'rgba(0,0,0,0.4)';
-  ctx.fillRect(0, 0, GAME_W, GAME_H);
 
-  ctx.fillStyle = number <= 1 ? '#f0c040' : '#fff';
-  ctx.font = `bold 320px sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(number > 0 ? String(number) : 'GO!', GAME_W / 2, GAME_H / 2);
+  const cx = GAME_W / 2;
+  const cy = GAME_H * 0.3;
+  const lightR = 48;
+  const spacing = 140;
+  const panelW = spacing * 2 + lightR * 2 + 60;
+  const panelH = lightR * 2 + 50;
+
+  // Dark panel behind lights
+  ctx.fillStyle = 'rgba(20,20,20,0.9)';
+  ctx.beginPath();
+  ctx.roundRect(cx - panelW / 2, cy - panelH / 2, panelW, panelH, 16);
+  ctx.fill();
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // 3 lights: number=3 → 1 lit, number=2 → 2 lit, number=1 → 3 lit, number=0 → all off
+  const litCount = number > 0 ? (4 - number) : 0;
+
+  for (let i = 0; i < 3; i++) {
+    const lx = cx + (i - 1) * spacing;
+    const isLit = i < litCount;
+
+    // Light housing (dark circle)
+    ctx.fillStyle = '#222';
+    ctx.beginPath();
+    ctx.arc(lx, cy, lightR + 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (isLit) {
+      // Glow
+      ctx.fillStyle = 'rgba(255,30,30,0.3)';
+      ctx.beginPath();
+      ctx.arc(lx, cy, lightR + 20, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Lit red
+      ctx.fillStyle = '#ff2020';
+      ctx.beginPath();
+      ctx.arc(lx, cy, lightR, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Highlight
+      ctx.fillStyle = 'rgba(255,150,150,0.4)';
+      ctx.beginPath();
+      ctx.arc(lx - lightR * 0.2, cy - lightR * 0.25, lightR * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // Unlit (dark red)
+      ctx.fillStyle = '#3a0a0a';
+      ctx.beginPath();
+      ctx.arc(lx, cy, lightR, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
 
   ctx.restore();
 }
@@ -381,5 +430,175 @@ export function drawCrashScreen(ctx) {
   ctx.font = '56px sans-serif';
   ctx.fillText('Tap to Retry', GAME_W / 2, GAME_H * 0.55);
 
+  ctx.restore();
+}
+
+// ── Steering wheel ───────────────────────────────────────────────────────────
+
+/**
+ * Draw a steering wheel at the drag origin position.
+ * @param {number} screenX - game-space X of drag origin
+ * @param {number} screenY - game-space Y of drag origin
+ * @param {number} steering - -1 to +1
+ */
+export function drawSteeringWheel(ctx, screenX, screenY, steering) {
+  const r = 80;
+  const rotation = steering * Math.PI * 0.75; // max 135° rotation
+
+  ctx.save();
+  ctx.globalAlpha = 0.4;
+  ctx.translate(screenX, screenY);
+  ctx.rotate(rotation);
+
+  // Outer ring
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 8;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Spokes (3 spokes at 120° apart, starting from bottom)
+  ctx.lineWidth = 6;
+  ctx.lineCap = 'round';
+  const spokeAngles = [-Math.PI / 2, -Math.PI / 2 + Math.PI * 2 / 3, -Math.PI / 2 - Math.PI * 2 / 3];
+  for (const a of spokeAngles) {
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * 20, Math.sin(a) * 20);
+    ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+    ctx.stroke();
+  }
+
+  // Center hub
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(0, 0, 14, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Top marker (so you can see rotation)
+  ctx.fillStyle = '#e63030';
+  ctx.beginPath();
+  ctx.arc(0, -r, 8, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+// ── Minimap ──────────────────────────────────────────────────────────────────
+
+/**
+ * Draw a minimap of the track in the bottom-right corner.
+ * @param {object} track - track data from generateTrack
+ * @param {object} centerLine - center-line path points
+ * @param {number} carX - car world X
+ * @param {number} carY - car world Y
+ */
+export function drawMinimap(ctx, track, centerLine, carX, carY, speed, startAngle) {
+  const mapSize = 240;
+  const margin = 24;
+  const mapX = GAME_W - mapSize - margin;
+  const mapY = GAME_H - mapSize - margin - 80;
+  const mapCx = mapX + mapSize / 2;
+  const mapCy = mapY + mapSize / 2;
+
+  ctx.save();
+
+  // Background
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.beginPath();
+  ctx.arc(mapCx, mapCy, mapSize / 2 + 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Compute bounds of the track to fit into the map
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const p of centerLine) {
+    if (p.x < minX) minX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y > maxY) maxY = p.y;
+  }
+  const pad = TILE;
+  minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+
+  const trackW = maxX - minX;
+  const trackH = maxY - minY;
+  const scale = Math.min((mapSize - 20) / trackW, (mapSize - 20) / trackH);
+  const trackCx = (minX + trackW / 2);
+  const trackCy = (minY + trackH / 2);
+
+  // Rotation to make start direction point upward
+  // startAngle is the car's world angle at start. We rotate the map by -startAngle
+  // so the car's forward direction points up on the minimap.
+  const rot = -(startAngle || 0);
+
+  // Clip to circle
+  ctx.beginPath();
+  ctx.arc(mapCx, mapCy, mapSize / 2, 0, Math.PI * 2);
+  ctx.clip();
+
+  // Transform: translate to map center, rotate, then scale and offset
+  ctx.translate(mapCx, mapCy);
+  ctx.rotate(rot);
+
+  // Helper to convert world coords to rotated map coords (before the ctx transform)
+  // After ctx transform, world points just need scale + offset from track center
+  const ox = -trackCx * scale;
+  const oy = -trackCy * scale;
+
+  // Draw track path
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = Math.max(2, TILE * scale * 0.8);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  for (let i = 0; i < centerLine.length; i++) {
+    const px = centerLine[i].x * scale + ox;
+    const py = centerLine[i].y * scale + oy;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+
+  // Start/finish line marker
+  const startTile = track.tiles.find(t => t.type === 'start');
+  if (startTile) {
+    const sfx = (startTile.gx + 0.5) * TILE * scale + ox;
+    const sfy = (startTile.gy + 0.5) * TILE * scale + oy;
+    // Draw a small checkered line perpendicular to track
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(sfx, sfy, 5, 0, Math.PI * 2);
+    ctx.fill();
+    // Cross mark
+    const fwd = DIR_VEC[startTile.dir];
+    const perpX = -fwd.y * TILE * 0.4 * scale;
+    const perpY = fwd.x * TILE * 0.4 * scale;
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(sfx - perpX, sfy - perpY);
+    ctx.lineTo(sfx + perpX, sfy + perpY);
+    ctx.stroke();
+  }
+
+  // Draw car position dot
+  const dotX = carX * scale + ox;
+  const dotY = carY * scale + oy;
+  ctx.fillStyle = '#e63030';
+  ctx.beginPath();
+  ctx.arc(dotX, dotY, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Speed above minimap (reset transform first)
+  ctx.restore();
+  ctx.save();
+  const kph = Math.round(speed || 0);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 40px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(`${kph} km/h`, mapCx, mapY - 12);
   ctx.restore();
 }

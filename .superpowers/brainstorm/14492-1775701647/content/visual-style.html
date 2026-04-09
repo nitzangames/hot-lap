@@ -1,0 +1,299 @@
+<h2>Visual Style</h2>
+<p class="subtitle">Which visual direction feels right for the racing game?</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <canvas id="mockA" width="270" height="480" style="width:100%;height:auto;border-radius:6px;"></canvas>
+    </div>
+    <div class="card-body">
+      <h3>A. Minimalist / Geometric</h3>
+      <p>Clean solid colors, simple shapes. Focus on gameplay.</p>
+    </div>
+  </div>
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <canvas id="mockB" width="270" height="480" style="width:100%;height:auto;border-radius:6px;"></canvas>
+    </div>
+    <div class="card-body">
+      <h3>B. Retro Pixel Art</h3>
+      <p>Chunky pixels, limited palette, nostalgic arcade feel.</p>
+    </div>
+  </div>
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <canvas id="mockC" width="270" height="480" style="width:100%;height:auto;border-radius:6px;"></canvas>
+    </div>
+    <div class="card-body">
+      <h3>C. Neon / Synthwave</h3>
+      <p>Dark background, glowing edges, neon colors.</p>
+    </div>
+  </div>
+  <div class="card" data-choice="d" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <canvas id="mockD" width="270" height="480" style="width:100%;height:auto;border-radius:6px;"></canvas>
+    </div>
+    <div class="card-body">
+      <h3>D. Realistic Top-Down</h3>
+      <p>Asphalt textures, grass, tire marks. Polished look.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// Helper: draw a curved track section on a canvas
+function drawTrackSection(ctx, w, h, opts) {
+  ctx.fillStyle = opts.bg;
+  ctx.fillRect(0, 0, w, h);
+
+  // Track surface
+  const trackL = w * 0.28;
+  const trackR = w * 0.72;
+  const trackW = trackR - trackL;
+
+  // Grass / off-track
+  if (opts.grass) {
+    ctx.fillStyle = opts.grass;
+    ctx.fillRect(0, 0, trackL, h);
+    ctx.fillRect(trackR, 0, w - trackR, h);
+  }
+
+  // Track
+  ctx.fillStyle = opts.track;
+  ctx.fillRect(trackL, 0, trackW, h);
+
+  // Center line
+  if (opts.centerLine) {
+    ctx.strokeStyle = opts.centerLine;
+    ctx.lineWidth = opts.centerLineWidth || 2;
+    ctx.setLineDash(opts.centerDash || [12, 8]);
+    ctx.beginPath();
+    ctx.moveTo(w / 2, 0);
+    ctx.lineTo(w / 2, h);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Walls
+  ctx.strokeStyle = opts.wall;
+  ctx.lineWidth = opts.wallWidth || 3;
+  if (opts.wallGlow) {
+    ctx.shadowColor = opts.wall;
+    ctx.shadowBlur = opts.wallGlow;
+  }
+  ctx.beginPath();
+  ctx.moveTo(trackL, 0); ctx.lineTo(trackL, h);
+  ctx.moveTo(trackR, 0); ctx.lineTo(trackR, h);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Car (triangle pointing up)
+  const carX = w / 2;
+  const carY = h * 0.65;
+  const carW = trackW * 0.15;
+  const carH = carW * 2;
+
+  ctx.fillStyle = opts.car;
+  if (opts.carGlow) {
+    ctx.shadowColor = opts.car;
+    ctx.shadowBlur = opts.carGlow;
+  }
+  ctx.beginPath();
+  ctx.moveTo(carX, carY - carH / 2);
+  ctx.lineTo(carX - carW / 2, carY + carH / 2);
+  ctx.lineTo(carX + carW / 2, carY + carH / 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Ghost car (semi-transparent, ahead)
+  if (opts.ghost) {
+    const gx = w / 2 - 8;
+    const gy = h * 0.4;
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = opts.ghost;
+    ctx.beginPath();
+    ctx.moveTo(gx, gy - carH / 2);
+    ctx.lineTo(gx - carW / 2, gy + carH / 2);
+    ctx.lineTo(gx + carW / 2, gy + carH / 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // HUD - timer
+  ctx.fillStyle = opts.hud;
+  ctx.font = opts.hudFont || 'bold 14px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('00:42.31', w / 2, 28);
+
+  // HUD - speed
+  ctx.font = opts.speedFont || '11px monospace';
+  ctx.fillText('187 km/h', w / 2, h - 16);
+}
+
+// A: Minimalist
+(function() {
+  const c = document.getElementById('mockA');
+  const ctx = c.getContext('2d');
+  drawTrackSection(ctx, 270, 480, {
+    bg: '#e8e8e8',
+    grass: '#b8d4a0',
+    track: '#d0d0d0',
+    wall: '#555',
+    wallWidth: 3,
+    centerLine: '#aaa',
+    centerDash: [10, 10],
+    car: '#e74c3c',
+    ghost: '#e74c3c',
+    hud: '#333',
+    hudFont: 'bold 14px sans-serif',
+    speedFont: '11px sans-serif'
+  });
+})();
+
+// B: Retro Pixel
+(function() {
+  const c = document.getElementById('mockB');
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  drawTrackSection(ctx, 270, 480, {
+    bg: '#2d5a1e',
+    grass: '#2d5a1e',
+    track: '#666',
+    wall: '#ff0',
+    wallWidth: 4,
+    centerLine: '#fff',
+    centerLineWidth: 3,
+    centerDash: [16, 16],
+    car: '#ff4444',
+    ghost: '#ff4444',
+    hud: '#fff',
+    hudFont: 'bold 16px monospace',
+    speedFont: '12px monospace'
+  });
+  // Add pixel grid overlay feel
+  ctx.fillStyle = 'rgba(0,0,0,0.04)';
+  for (let y = 0; y < 480; y += 4) {
+    ctx.fillRect(0, y, 270, 1);
+  }
+})();
+
+// C: Neon / Synthwave
+(function() {
+  const c = document.getElementById('mockC');
+  const ctx = c.getContext('2d');
+  drawTrackSection(ctx, 270, 480, {
+    bg: '#0a0a1a',
+    track: '#111125',
+    wall: '#00ffff',
+    wallWidth: 2,
+    wallGlow: 15,
+    centerLine: '#ff00ff44',
+    centerLineWidth: 1,
+    centerDash: [20, 15],
+    car: '#ff3366',
+    carGlow: 12,
+    ghost: '#00ffcc',
+    hud: '#00ffff',
+    hudFont: 'bold 14px monospace',
+    speedFont: '11px monospace'
+  });
+  // Add subtle grid on track
+  const trackL = 270 * 0.28;
+  const trackR = 270 * 0.72;
+  ctx.strokeStyle = 'rgba(0,255,255,0.06)';
+  ctx.lineWidth = 1;
+  for (let y = 0; y < 480; y += 30) {
+    ctx.beginPath(); ctx.moveTo(trackL, y); ctx.lineTo(trackR, y); ctx.stroke();
+  }
+})();
+
+// D: Realistic
+(function() {
+  const c = document.getElementById('mockD');
+  const ctx = c.getContext('2d');
+  // Grass with texture
+  ctx.fillStyle = '#4a7a2e';
+  ctx.fillRect(0, 0, 270, 480);
+  for (let i = 0; i < 300; i++) {
+    ctx.fillStyle = `rgba(${50+Math.random()*30}, ${100+Math.random()*40}, ${30+Math.random()*20}, 0.3)`;
+    const x = Math.random() < 0.5 ? Math.random() * 270 * 0.28 : 270 * 0.72 + Math.random() * 270 * 0.28;
+    ctx.fillRect(x, Math.random() * 480, 2, 3);
+  }
+
+  const trackL = 270 * 0.28;
+  const trackR = 270 * 0.72;
+  const trackW = trackR - trackL;
+
+  // Asphalt with noise
+  ctx.fillStyle = '#444';
+  ctx.fillRect(trackL, 0, trackW, 480);
+  for (let i = 0; i < 500; i++) {
+    const g = 60 + Math.random() * 20;
+    ctx.fillStyle = `rgba(${g},${g},${g},0.2)`;
+    ctx.fillRect(trackL + Math.random() * trackW, Math.random() * 480, 2, 2);
+  }
+
+  // Curb strips (red/white)
+  for (let y = 0; y < 480; y += 16) {
+    ctx.fillStyle = y % 32 < 16 ? '#cc3333' : '#fff';
+    ctx.fillRect(trackL - 4, y, 6, 8);
+    ctx.fillRect(trackR - 2, y, 6, 8);
+  }
+
+  // Center dashes
+  ctx.strokeStyle = '#eee';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([14, 10]);
+  ctx.beginPath();
+  ctx.moveTo(270/2, 0); ctx.lineTo(270/2, 480);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Tire marks
+  ctx.strokeStyle = 'rgba(30,30,30,0.25)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(270*0.45, 480);
+  ctx.quadraticCurveTo(270*0.42, 300, 270*0.48, 150);
+  ctx.stroke();
+
+  // Car (rectangle with detail)
+  const carX = 270/2, carY = 480*0.65;
+  ctx.fillStyle = '#cc2222';
+  ctx.save();
+  ctx.translate(carX, carY);
+  // Body
+  ctx.fillRect(-8, -16, 16, 32);
+  // Windshield
+  ctx.fillStyle = '#224';
+  ctx.fillRect(-6, -12, 12, 8);
+  // Rear
+  ctx.fillStyle = '#991111';
+  ctx.fillRect(-8, 10, 16, 6);
+  ctx.restore();
+
+  // Ghost
+  ctx.globalAlpha = 0.3;
+  ctx.fillStyle = '#2266cc';
+  ctx.save();
+  ctx.translate(270/2 - 8, 480*0.4);
+  ctx.fillRect(-8, -16, 16, 32);
+  ctx.fillStyle = '#113';
+  ctx.fillRect(-6, -12, 12, 8);
+  ctx.restore();
+  ctx.globalAlpha = 1;
+
+  // HUD
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 14px monospace';
+  ctx.textAlign = 'center';
+  ctx.shadowColor = '#000';
+  ctx.shadowBlur = 4;
+  ctx.fillText('00:42.31', 270/2, 28);
+  ctx.font = '11px monospace';
+  ctx.fillText('187 km/h', 270/2, 480 - 16);
+  ctx.shadowBlur = 0;
+})();
+</script>

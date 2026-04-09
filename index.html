@@ -12,6 +12,21 @@ canvas { display: block; position: absolute; top: 0; left: 50%; transform: trans
 </head>
 <body>
 <canvas id="c"></canvas>
+<div id="err" style="display:none;position:fixed;bottom:0;left:0;right:0;background:rgba(200,0,0,0.9);color:#fff;font:14px monospace;padding:12px;max-height:40vh;overflow:auto;z-index:999;white-space:pre-wrap;"></div>
+<script>
+function logError(msg) {
+  var el = document.getElementById('err');
+  el.style.display = 'block';
+  el.textContent += msg + '\n\n';
+  try { fetch('/__log_error', { method: 'POST', body: msg }); } catch(e) {}
+}
+window.onerror = function(msg, src, line, col, err) {
+  logError(msg + '\n  at ' + src + ':' + line + ':' + col + (err && err.stack ? '\n' + err.stack : ''));
+};
+window.addEventListener('unhandledrejection', function(e) {
+  logError('Unhandled: ' + (e.reason && e.reason.stack ? e.reason.stack : e.reason));
+});
+</script>
 <script type="module" src="js/main.js"></script>
 </body>
 </html>

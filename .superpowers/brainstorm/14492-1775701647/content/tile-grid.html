@@ -1,0 +1,151 @@
+<h2>Tile Size on 1080x1920 Screen</h2>
+<p class="subtitle">Each square is one tile. The track occupies one tile width. Car shown at 40px.</p>
+
+<div class="cards">
+  <div class="card" data-choice="270" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <canvas id="mock270" width="270" height="480" style="width:100%;height:auto;border-radius:6px;"></canvas>
+    </div>
+    <div class="card-body">
+      <h3>270px tiles — 4 tiles across, 7 down</h3>
+      <p>Track fills 1/4 of screen width. Car is 40px (15% of tile).</p>
+    </div>
+  </div>
+  <div class="card" data-choice="180" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <canvas id="mock180" width="270" height="480" style="width:100%;height:auto;border-radius:6px;"></canvas>
+    </div>
+    <div class="card-body">
+      <h3>180px tiles — 6 tiles across, 10.7 down</h3>
+      <p>Track fills 1/6 of screen width. Car is 40px (22% of tile).</p>
+    </div>
+  </div>
+  <div class="card" data-choice="120" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <canvas id="mock120" width="270" height="480" style="width:100%;height:auto;border-radius:6px;"></canvas>
+    </div>
+    <div class="card-body">
+      <h3>120px tiles — 9 tiles across, 16 down</h3>
+      <p>Track fills 1/9 of screen width. Car is 40px (33% of tile).</p>
+    </div>
+  </div>
+</div>
+
+<script>
+function drawTileGrid(canvasId, tileSize, screenW, screenH) {
+  const c = document.getElementById(canvasId);
+  const ctx = c.getContext('2d');
+  const cw = c.width, ch = c.height;
+  const scale = cw / screenW;
+
+  // Background
+  ctx.fillStyle = '#4a7a2e';
+  ctx.fillRect(0, 0, cw, ch);
+
+  const ts = tileSize * scale;
+  const cols = Math.ceil(cw / ts);
+  const rows = Math.ceil(ch / ts);
+
+  // Draw tile grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= cols; x++) {
+    ctx.beginPath();
+    ctx.moveTo(x * ts, 0);
+    ctx.lineTo(x * ts, ch);
+    ctx.stroke();
+  }
+  for (let y = 0; y <= rows; y++) {
+    ctx.beginPath();
+    ctx.moveTo(0, y * ts);
+    ctx.lineTo(cw, y * ts);
+    ctx.stroke();
+  }
+
+  // Draw a straight track segment (3 tiles tall, 1 tile wide, centered-ish)
+  const trackCol = Math.floor(cols / 2);
+  const trackStartRow = Math.floor(rows / 2) - 1;
+  const trackTiles = 3;
+  const wallThick = 3 * scale;
+
+  for (let i = 0; i < trackTiles; i++) {
+    const tx = trackCol * ts;
+    const ty = (trackStartRow + i) * ts;
+
+    // Asphalt
+    ctx.fillStyle = '#3d3d3d';
+    ctx.fillRect(tx, ty, ts, ts);
+
+    // Center dash
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    ctx.moveTo(tx + ts/2, ty);
+    ctx.lineTo(tx + ts/2, ty + ts);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Walls
+    ctx.fillStyle = '#888';
+    ctx.fillRect(tx - wallThick, ty, wallThick, ts);
+    ctx.fillRect(tx + ts, ty, wallThick, ts);
+  }
+
+  // Draw the car (40px in game coords)
+  const carW = 40 * scale;
+  const carH = carW * 2.4;
+  const carX = trackCol * ts + ts/2;
+  const carY = (trackStartRow + 1) * ts + ts/2;
+
+  // Car body
+  ctx.fillStyle = '#cc1111';
+  ctx.beginPath();
+  ctx.moveTo(carX - carW*0.08, carY - carH/2);
+  ctx.lineTo(carX + carW*0.08, carY - carH/2);
+  ctx.lineTo(carX + carW*0.35, carY - carH/4);
+  ctx.lineTo(carX + carW*0.38, carY + carH*0.3);
+  ctx.lineTo(carX - carW*0.38, carY + carH*0.3);
+  ctx.lineTo(carX - carW*0.35, carY - carH/4);
+  ctx.closePath();
+  ctx.fill();
+
+  // Tires
+  ctx.fillStyle = '#222';
+  const tw = carW * 0.18;
+  const th = carW * 0.4;
+  ctx.fillRect(carX - carW/2 - tw/2, carY + carH*0.05, tw, th);
+  ctx.fillRect(carX + carW/2 - tw/2, carY + carH*0.05, tw, th);
+  ctx.fillRect(carX - carW/2 - tw/2, carY - carH*0.35, tw, th*0.7);
+  ctx.fillRect(carX + carW/2 - tw/2, carY - carH*0.35, tw, th*0.7);
+
+  // Wings
+  ctx.fillStyle = '#dd3333';
+  ctx.fillRect(carX - carW/2 - tw*0.2, carY + carH*0.28, carW + tw*0.4, carW*0.08);
+  ctx.fillRect(carX - carW/2 - tw*0.2, carY - carH/2, carW + tw*0.4, carW*0.06);
+
+  // Cockpit
+  ctx.fillStyle = '#1a1a2a';
+  ctx.fillRect(carX - carW*0.12, carY - carH*0.12, carW*0.24, carH*0.14);
+
+  // Labels
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${Math.max(10, 12 * scale)}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText(`${tileSize}px tile`, trackCol * ts + ts/2, (trackStartRow - 0.3) * ts);
+  ctx.font = `${Math.max(8, 10 * scale)}px sans-serif`;
+  ctx.fillText(`car: 40px`, carX, carY + carH/2 + 12 * scale);
+
+  // Grid dimensions label
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.font = `${Math.max(8, 9 * scale)}px sans-serif`;
+  ctx.textAlign = 'left';
+  const tilesAcross = Math.round(screenW / tileSize);
+  const tilesDown = (screenH / tileSize).toFixed(1);
+  ctx.fillText(`${tilesAcross} x ${tilesDown} tiles visible`, 4, ch - 6);
+}
+
+drawTileGrid('mock270', 270, 1080, 1920);
+drawTileGrid('mock180', 180, 1080, 1920);
+drawTileGrid('mock120', 120, 1080, 1920);
+</script>
