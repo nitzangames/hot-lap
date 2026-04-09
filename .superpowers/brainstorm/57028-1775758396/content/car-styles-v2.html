@@ -1,0 +1,468 @@
+<h2>Formula Car Styles — Pronounced Wings</h2>
+<p class="subtitle">All drawn at 64px wide, 141px tall — click to select</p>
+
+<div class="cards">
+  <div class="card" data-choice="f" onclick="toggleSelect(this)">
+    <div class="card-image"><canvas id="carF" width="200" height="360" style="width:100%;height:auto;border-radius:6px;background:#3d3d3d;"></canvas></div>
+    <div class="card-body"><h3>F. Wide Wings</h3><p>Massive front and rear wings extending past tires, narrow waist</p></div>
+  </div>
+  <div class="card" data-choice="g" onclick="toggleSelect(this)">
+    <div class="card-image"><canvas id="carG" width="200" height="360" style="width:100%;height:auto;border-radius:6px;background:#3d3d3d;"></canvas></div>
+    <div class="card-body"><h3>G. Swept Aero</h3><p>Swept-back front wing, huge double-deck rear wing, angular body</p></div>
+  </div>
+  <div class="card" data-choice="h" onclick="toggleSelect(this)">
+    <div class="card-image"><canvas id="carH" width="200" height="360" style="width:100%;height:auto;border-radius:6px;background:#3d3d3d;"></canvas></div>
+    <div class="card-body"><h3>H. Endplate Beast</h3><p>Bold endplates on both wings, chunky tires, strong silhouette</p></div>
+  </div>
+  <div class="card" data-choice="i" onclick="toggleSelect(this)">
+    <div class="card-image"><canvas id="carI" width="200" height="360" style="width:100%;height:auto;border-radius:6px;background:#3d3d3d;"></canvas></div>
+    <div class="card-body"><h3>I. Layered Wing</h3><p>Multi-element front wing, stacked rear wing, clean body</p></div>
+  </div>
+  <div class="card" data-choice="j" onclick="toggleSelect(this)">
+    <div class="card-image"><canvas id="carJ" width="200" height="360" style="width:100%;height:auto;border-radius:6px;background:#3d3d3d;"></canvas></div>
+    <div class="card-body"><h3>J. Arrow Aero</h3><p>Sharp arrow body with dramatic wing platforms, speed lines</p></div>
+  </div>
+</div>
+
+<script>
+const S = 2.5;
+const W = 64, H = 141;
+
+function setupCanvas(id) {
+  const c = document.getElementById(id);
+  const ctx = c.getContext('2d');
+  ctx.translate(100, 180);
+  ctx.scale(S, S);
+  return ctx;
+}
+
+// F. Wide Wings — massive wings, narrow body
+function drawCarF(ctx) {
+  const w = W, h = H;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath();
+  ctx.ellipse(2, 2, w*0.55, h*0.4, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Rear tires
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(-w*0.5, h*0.08, w*0.17, h*0.24);
+  ctx.fillRect(w*0.33, h*0.08, w*0.17, h*0.24);
+
+  // Front tires
+  ctx.fillRect(-w*0.48, -h*0.3, w*0.14, h*0.18);
+  ctx.fillRect(w*0.34, -h*0.3, w*0.14, h*0.18);
+
+  // REAR WING — very wide, extends past tires
+  ctx.fillStyle = '#cc2020';
+  ctx.fillRect(-w*0.6, h*0.34, w*1.2, h*0.05);
+  // Rear wing endplates — tall
+  ctx.fillRect(-w*0.62, h*0.26, w*0.06, h*0.15);
+  ctx.fillRect(w*0.56, h*0.26, w*0.06, h*0.15);
+  // Second rear wing element
+  ctx.fillStyle = '#aa1818';
+  ctx.fillRect(-w*0.55, h*0.28, w*1.1, h*0.03);
+
+  // Body — narrow waist
+  ctx.fillStyle = '#e63030';
+  ctx.beginPath();
+  ctx.moveTo(0, -h*0.44);
+  ctx.lineTo(w*0.18, -h*0.2);
+  ctx.lineTo(w*0.24, 0);
+  ctx.lineTo(w*0.28, h*0.25);
+  ctx.lineTo(-w*0.28, h*0.25);
+  ctx.lineTo(-w*0.24, 0);
+  ctx.lineTo(-w*0.18, -h*0.2);
+  ctx.closePath();
+  ctx.fill();
+
+  // Cockpit
+  ctx.fillStyle = '#111';
+  ctx.beginPath();
+  ctx.ellipse(0, -h*0.08, w*0.13, h*0.1, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Sidepods
+  ctx.fillStyle = '#d02828';
+  ctx.fillRect(-w*0.34, -h*0.02, w*0.12, h*0.2);
+  ctx.fillRect(w*0.22, -h*0.02, w*0.12, h*0.2);
+
+  // FRONT WING — very wide
+  ctx.fillStyle = '#cc2020';
+  ctx.fillRect(-w*0.58, -h*0.36, w*1.16, h*0.04);
+  // Front wing endplates
+  ctx.fillRect(-w*0.6, -h*0.4, w*0.06, h*0.1);
+  ctx.fillRect(w*0.54, -h*0.4, w*0.06, h*0.1);
+  // Second front element
+  ctx.fillStyle = '#aa1818';
+  ctx.fillRect(-w*0.52, -h*0.32, w*1.04, h*0.025);
+
+  // Nose tip
+  ctx.fillStyle = '#e63030';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.06, -h*0.44);
+  ctx.lineTo(w*0.06, -h*0.44);
+  ctx.lineTo(w*0.04, -h*0.48);
+  ctx.lineTo(-w*0.04, -h*0.48);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// G. Swept Aero — angular swept wings
+function drawCarG(ctx) {
+  const w = W, h = H;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath();
+  ctx.ellipse(2, 2, w*0.5, h*0.4, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Rear tires
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(-w*0.5, h*0.06, w*0.16, h*0.25);
+  ctx.fillRect(w*0.34, h*0.06, w*0.16, h*0.25);
+
+  // Front tires
+  ctx.fillRect(-w*0.46, -h*0.3, w*0.14, h*0.17);
+  ctx.fillRect(w*0.32, -h*0.3, w*0.14, h*0.17);
+
+  // REAR WING — double deck, swept
+  ctx.fillStyle = '#cc2020';
+  // Main element
+  ctx.beginPath();
+  ctx.moveTo(-w*0.55, h*0.38);
+  ctx.lineTo(-w*0.48, h*0.32);
+  ctx.lineTo(w*0.48, h*0.32);
+  ctx.lineTo(w*0.55, h*0.38);
+  ctx.closePath();
+  ctx.fill();
+  // Upper element
+  ctx.fillStyle = '#dd3030';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.5, h*0.30);
+  ctx.lineTo(-w*0.42, h*0.26);
+  ctx.lineTo(w*0.42, h*0.26);
+  ctx.lineTo(w*0.5, h*0.30);
+  ctx.closePath();
+  ctx.fill();
+  // Endplates
+  ctx.fillStyle = '#222';
+  ctx.fillRect(-w*0.56, h*0.22, w*0.06, h*0.18);
+  ctx.fillRect(w*0.50, h*0.22, w*0.06, h*0.18);
+  // Wing supports
+  ctx.fillStyle = '#444';
+  ctx.fillRect(-w*0.1, h*0.22, w*0.04, h*0.12);
+  ctx.fillRect(w*0.06, h*0.22, w*0.04, h*0.12);
+
+  // Body — angular
+  ctx.fillStyle = '#e63030';
+  ctx.beginPath();
+  ctx.moveTo(0, -h*0.46);
+  ctx.lineTo(w*0.2, -h*0.18);
+  ctx.lineTo(w*0.26, h*0.05);
+  ctx.lineTo(w*0.22, h*0.3);
+  ctx.lineTo(-w*0.22, h*0.3);
+  ctx.lineTo(-w*0.26, h*0.05);
+  ctx.lineTo(-w*0.2, -h*0.18);
+  ctx.closePath();
+  ctx.fill();
+
+  // Cockpit
+  ctx.fillStyle = '#111';
+  ctx.fillRect(-w*0.1, -h*0.12, w*0.2, h*0.16);
+
+  // Air intake
+  ctx.fillStyle = '#222';
+  ctx.fillRect(-w*0.05, -h*0.2, w*0.1, h*0.06);
+
+  // FRONT WING — swept back
+  ctx.fillStyle = '#cc2020';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.12, -h*0.38);
+  ctx.lineTo(-w*0.52, -h*0.3);
+  ctx.lineTo(-w*0.52, -h*0.33);
+  ctx.lineTo(-w*0.12, -h*0.41);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(w*0.12, -h*0.38);
+  ctx.lineTo(w*0.52, -h*0.3);
+  ctx.lineTo(w*0.52, -h*0.33);
+  ctx.lineTo(w*0.12, -h*0.41);
+  ctx.closePath();
+  ctx.fill();
+  // Front endplates
+  ctx.fillStyle = '#222';
+  ctx.fillRect(-w*0.54, -h*0.35, w*0.05, h*0.08);
+  ctx.fillRect(w*0.49, -h*0.35, w*0.05, h*0.08);
+}
+
+// H. Endplate Beast — bold endplates, chunky
+function drawCarH(ctx) {
+  const w = W, h = H;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath();
+  ctx.ellipse(2, 2, w*0.5, h*0.42, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // BIG rear tires
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(-w*0.52, h*0.04, w*0.2, h*0.28);
+  ctx.fillRect(w*0.32, h*0.04, w*0.2, h*0.28);
+
+  // Front tires
+  ctx.fillRect(-w*0.48, -h*0.32, w*0.16, h*0.2);
+  ctx.fillRect(w*0.32, -h*0.32, w*0.16, h*0.2);
+
+  // REAR WING with massive endplates
+  ctx.fillStyle = '#cc2020';
+  ctx.fillRect(-w*0.48, h*0.32, w*0.96, h*0.05);
+  // Endplates — big and visible
+  ctx.fillStyle = '#e63030';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.52, h*0.22); ctx.lineTo(-w*0.48, h*0.22);
+  ctx.lineTo(-w*0.48, h*0.4); ctx.lineTo(-w*0.56, h*0.4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(w*0.52, h*0.22); ctx.lineTo(w*0.48, h*0.22);
+  ctx.lineTo(w*0.48, h*0.4); ctx.lineTo(w*0.56, h*0.4);
+  ctx.closePath();
+  ctx.fill();
+
+  // Body — solid
+  ctx.fillStyle = '#e63030';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.06, -h*0.46);
+  ctx.lineTo(w*0.06, -h*0.46);
+  ctx.lineTo(w*0.22, -h*0.2);
+  ctx.lineTo(w*0.28, h*0.1);
+  ctx.lineTo(w*0.24, h*0.32);
+  ctx.lineTo(-w*0.24, h*0.32);
+  ctx.lineTo(-w*0.28, h*0.1);
+  ctx.lineTo(-w*0.22, -h*0.2);
+  ctx.closePath();
+  ctx.fill();
+
+  // Cockpit
+  ctx.fillStyle = '#111';
+  ctx.beginPath();
+  ctx.ellipse(0, -h*0.06, w*0.14, h*0.1, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Sidepods — chunky
+  ctx.fillStyle = '#d02828';
+  ctx.fillRect(-w*0.36, -h*0.02, w*0.12, h*0.22);
+  ctx.fillRect(w*0.24, -h*0.02, w*0.12, h*0.22);
+
+  // FRONT WING with endplates
+  ctx.fillStyle = '#cc2020';
+  ctx.fillRect(-w*0.52, -h*0.35, w*1.04, h*0.04);
+  // Front endplates — big
+  ctx.fillStyle = '#e63030';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.56, -h*0.4); ctx.lineTo(-w*0.52, -h*0.4);
+  ctx.lineTo(-w*0.48, -h*0.28); ctx.lineTo(-w*0.56, -h*0.28);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(w*0.56, -h*0.4); ctx.lineTo(w*0.52, -h*0.4);
+  ctx.lineTo(w*0.48, -h*0.28); ctx.lineTo(w*0.56, -h*0.28);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// I. Layered Wing — multi-element wings
+function drawCarI(ctx) {
+  const w = W, h = H;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath();
+  ctx.ellipse(2, 2, w*0.48, h*0.4, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Rear tires
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(-w*0.5, h*0.06, w*0.16, h*0.25);
+  ctx.fillRect(w*0.34, h*0.06, w*0.16, h*0.25);
+
+  // Front tires
+  ctx.fillRect(-w*0.46, -h*0.3, w*0.14, h*0.17);
+  ctx.fillRect(w*0.32, -h*0.3, w*0.14, h*0.17);
+
+  // REAR WING — 3 stacked elements
+  ctx.fillStyle = '#222';
+  ctx.fillRect(-w*0.5, h*0.2, w*0.05, h*0.2); // left pillar
+  ctx.fillRect(w*0.45, h*0.2, w*0.05, h*0.2); // right pillar
+  ctx.fillStyle = '#cc2020';
+  ctx.fillRect(-w*0.52, h*0.36, w*1.04, h*0.035);
+  ctx.fillStyle = '#dd3535';
+  ctx.fillRect(-w*0.50, h*0.31, w*1.0, h*0.03);
+  ctx.fillStyle = '#ee4545';
+  ctx.fillRect(-w*0.48, h*0.265, w*0.96, h*0.025);
+
+  // Body — clean teardrop
+  ctx.fillStyle = '#e63030';
+  ctx.beginPath();
+  ctx.moveTo(0, -h*0.44);
+  ctx.lineTo(w*0.15, -h*0.22);
+  ctx.lineTo(w*0.22, 0);
+  ctx.lineTo(w*0.22, h*0.22);
+  ctx.lineTo(-w*0.22, h*0.22);
+  ctx.lineTo(-w*0.22, 0);
+  ctx.lineTo(-w*0.15, -h*0.22);
+  ctx.closePath();
+  ctx.fill();
+
+  // White stripe
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.moveTo(0, -h*0.44);
+  ctx.lineTo(w*0.03, -h*0.22);
+  ctx.lineTo(w*0.03, h*0.22);
+  ctx.lineTo(-w*0.03, h*0.22);
+  ctx.lineTo(-w*0.03, -h*0.22);
+  ctx.closePath();
+  ctx.fill();
+
+  // Cockpit
+  ctx.fillStyle = '#111';
+  ctx.beginPath();
+  ctx.ellipse(0, -h*0.06, w*0.12, h*0.1, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // FRONT WING — multi element
+  ctx.fillStyle = '#cc2020';
+  ctx.fillRect(-w*0.5, -h*0.36, w*1.0, h*0.03);
+  ctx.fillStyle = '#dd3535';
+  ctx.fillRect(-w*0.48, -h*0.32, w*0.96, h*0.025);
+  ctx.fillStyle = '#ee4545';
+  ctx.fillRect(-w*0.45, -h*0.285, w*0.9, h*0.02);
+  // Endplates
+  ctx.fillStyle = '#222';
+  ctx.fillRect(-w*0.52, -h*0.39, w*0.05, h*0.13);
+  ctx.fillRect(w*0.47, -h*0.39, w*0.05, h*0.13);
+}
+
+// J. Arrow Aero — sharp with wing platforms
+function drawCarJ(ctx) {
+  const w = W, h = H;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath();
+  ctx.moveTo(0, -h*0.42);
+  ctx.lineTo(w*0.45, h*0.3);
+  ctx.lineTo(-w*0.45, h*0.3);
+  ctx.closePath();
+  ctx.fill();
+
+  // Rear tires
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(-w*0.52, h*0.06, w*0.17, h*0.26);
+  ctx.fillRect(w*0.35, h*0.06, w*0.17, h*0.26);
+
+  // Front tires
+  ctx.fillRect(-w*0.48, -h*0.28, w*0.14, h*0.16);
+  ctx.fillRect(w*0.34, -h*0.28, w*0.14, h*0.16);
+
+  // REAR WING — dramatic platform
+  ctx.fillStyle = '#cc2020';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.58, h*0.4);
+  ctx.lineTo(-w*0.54, h*0.3);
+  ctx.lineTo(w*0.54, h*0.3);
+  ctx.lineTo(w*0.58, h*0.4);
+  ctx.closePath();
+  ctx.fill();
+  // Endplates with rake
+  ctx.fillStyle = '#aa1818';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.6, h*0.42); ctx.lineTo(-w*0.56, h*0.24);
+  ctx.lineTo(-w*0.52, h*0.24); ctx.lineTo(-w*0.56, h*0.42);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(w*0.6, h*0.42); ctx.lineTo(w*0.56, h*0.24);
+  ctx.lineTo(w*0.52, h*0.24); ctx.lineTo(w*0.56, h*0.42);
+  ctx.closePath();
+  ctx.fill();
+
+  // Body — sharp arrow
+  ctx.fillStyle = '#e63030';
+  ctx.beginPath();
+  ctx.moveTo(0, -h*0.48);
+  ctx.lineTo(w*0.1, -h*0.28);
+  ctx.lineTo(w*0.32, h*0.05);
+  ctx.lineTo(w*0.28, h*0.32);
+  ctx.lineTo(-w*0.28, h*0.32);
+  ctx.lineTo(-w*0.32, h*0.05);
+  ctx.lineTo(-w*0.1, -h*0.28);
+  ctx.closePath();
+  ctx.fill();
+
+  // Darker side panels
+  ctx.fillStyle = '#c82525';
+  ctx.beginPath();
+  ctx.moveTo(w*0.1, -h*0.28);
+  ctx.lineTo(w*0.32, h*0.05);
+  ctx.lineTo(w*0.28, h*0.2);
+  ctx.lineTo(w*0.08, h*0.2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(-w*0.1, -h*0.28);
+  ctx.lineTo(-w*0.32, h*0.05);
+  ctx.lineTo(-w*0.28, h*0.2);
+  ctx.lineTo(-w*0.08, h*0.2);
+  ctx.closePath();
+  ctx.fill();
+
+  // Cockpit
+  ctx.fillStyle = '#111';
+  ctx.beginPath();
+  ctx.moveTo(0, -h*0.16);
+  ctx.lineTo(w*0.1, -h*0.02);
+  ctx.lineTo(0, h*0.1);
+  ctx.lineTo(-w*0.1, -h*0.02);
+  ctx.closePath();
+  ctx.fill();
+
+  // FRONT WING — wide platform
+  ctx.fillStyle = '#cc2020';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.1, -h*0.38);
+  ctx.lineTo(-w*0.54, -h*0.26);
+  ctx.lineTo(-w*0.54, -h*0.3);
+  ctx.lineTo(-w*0.1, -h*0.42);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(w*0.1, -h*0.38);
+  ctx.lineTo(w*0.54, -h*0.26);
+  ctx.lineTo(w*0.54, -h*0.3);
+  ctx.lineTo(w*0.1, -h*0.42);
+  ctx.closePath();
+  ctx.fill();
+  // Front endplates
+  ctx.fillStyle = '#aa1818';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.56, -h*0.22); ctx.lineTo(-w*0.52, -h*0.22);
+  ctx.lineTo(-w*0.56, -h*0.34); ctx.lineTo(-w*0.58, -h*0.34);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(w*0.56, -h*0.22); ctx.lineTo(w*0.52, -h*0.22);
+  ctx.lineTo(w*0.56, -h*0.34); ctx.lineTo(w*0.58, -h*0.34);
+  ctx.closePath();
+  ctx.fill();
+}
+
+drawCarF(setupCanvas('carF'));
+drawCarG(setupCanvas('carG'));
+drawCarH(setupCanvas('carH'));
+drawCarI(setupCanvas('carI'));
+drawCarJ(setupCanvas('carJ'));
+</script>

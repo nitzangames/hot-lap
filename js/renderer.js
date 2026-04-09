@@ -4,6 +4,7 @@ import {
   GAME_W, GAME_H,
 } from './constants.js';
 import { DIR_VEC } from './track.js';
+import { CAR_STYLES, hueToColors } from './car-styles.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -28,18 +29,46 @@ function pillRect(ctx, cx, cy, w, h, r) {
 
 // ── Track rendering ───────────────────────────────────────────────────────────
 
-export function drawTrack(ctx, track, walls, centerLine) {
+export function drawTrack(ctx, track, walls, centerLine, curbs, brakeMarkers) {
   const T = TILE;
 
-  // 1. Asphalt fill
-  ctx.fillStyle = '#3d3d3d';
-  for (const tile of track.tiles) {
-    for (const cell of tile.cells) {
-      ctx.fillRect(cell.x * T, cell.y * T, T, T);
+  // 1. Asphalt fill — draw as thick stroke along center line
+  if (centerLine && centerLine.length > 1) {
+    ctx.save();
+    ctx.strokeStyle = '#3d3d3d';
+    ctx.lineWidth = T;
+    ctx.lineCap = 'square';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(centerLine[0].x, centerLine[0].y);
+    for (let i = 1; i < centerLine.length; i++) {
+      ctx.lineTo(centerLine[i].x, centerLine[i].y);
+    }
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // 2. Red/white curbs on curve insides
+  if (curbs) {
+    const curbSegments = 16; // number of alternating red/white segments per curb
+    for (const curb of curbs) {
+      const { cx, cy, innerR, outerR, startAngle, sweep } = curb;
+      const segSweep = sweep / curbSegments;
+      for (let i = 0; i < curbSegments; i++) {
+        const a0 = startAngle + segSweep * i;
+        const a1 = startAngle + segSweep * (i + 1);
+        ctx.fillStyle = i % 2 === 0 ? '#cc2222' : '#eeeeee';
+        ctx.beginPath();
+        ctx.arc(cx, cy, outerR, a0, a1, sweep < 0);
+        ctx.arc(cx, cy, innerR, a1, a0, sweep > 0);
+        ctx.closePath();
+        ctx.fill();
+      }
     }
   }
 
-  // 2. Start / finish checkered pattern
+  // 3. Start / finish checkered pattern
   for (const tile of track.tiles) {
     if (tile.type !== 'start' && tile.type !== 'finish') continue;
 
@@ -130,6 +159,29 @@ export function drawTrack(ctx, track, walls, centerLine) {
       ctx.stroke();
     }
     ctx.restore();
+  }
+
+  // 6. Brake marker tiles (red/white striped zones next to track)
+  if (brakeMarkers) {
+    for (const m of brakeMarkers) {
+      const tx = m.gx * T;
+      const ty = m.gy * T;
+      const fwd = DIR_VEC[m.dir];
+
+      ctx.save();
+      ctx.translate(tx + T / 2, ty + T / 2);
+      // Rotate so stripes are perpendicular to track direction
+      ctx.rotate(Math.atan2(fwd.y, fwd.x));
+
+      const stripeCount = 8;
+      const stripeH = T / stripeCount;
+      for (let s = 0; s < stripeCount; s++) {
+        ctx.fillStyle = s % 2 === 0 ? '#cc2222' : '#eeeeee';
+        ctx.fillRect(-T / 2, -T / 2 + s * stripeH, T, stripeH);
+      }
+
+      ctx.restore();
+    }
   }
 }
 
@@ -295,7 +347,8 @@ export function drawHUD(ctx, currentTime, bestTime, speed, seed) {
 
 // ── Overlay screens ───────────────────────────────────────────────────────────
 
-export function drawTitleScreen(ctx, seed) {
+export function drawTitleScreen(ctx, seed, bodyColor) {
+  const cx = GAME_W / 2;
   ctx.save();
   ctx.fillStyle = 'rgba(0,0,0,0.72)';
   ctx.fillRect(0, 0, GAME_W, GAME_H);
@@ -304,17 +357,41 @@ export function drawTitleScreen(ctx, seed) {
   ctx.font = 'bold 110px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('RACING 2D', GAME_W / 2, GAME_H * 0.38);
+  ctx.fillText('RACING 2D', cx, GAME_H * 0.32);
 
+  // RACE button
+  const raceY = GAME_H * 0.48;
+  ctx.fillStyle = bodyColor || '#e63030';
+  ctx.beginPath();
+  ctx.roundRect(cx - 220, raceY, 440, 100, 18);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 56px sans-serif';
+  ctx.fillText('RACE', cx, raceY + 50);
+
+  // CHOOSE CAR button
+  const carY = GAME_H * 0.58;
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.beginPath();
+  ctx.roundRect(cx - 220, carY, 440, 80, 18);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
   ctx.fillStyle = '#ccc';
-  ctx.font = '52px sans-serif';
-  ctx.fillText('Tap to Race', GAME_W / 2, GAME_H * 0.55);
+  ctx.font = '40px sans-serif';
+  ctx.fillText('CHOOSE CAR', cx, carY + 42);
 
   ctx.fillStyle = '#666';
   ctx.font = '24px sans-serif';
-  ctx.fillText('v0.14 — seed: ' + seed, GAME_W / 2, GAME_H * 0.92);
+  ctx.fillText('v0.15 — seed: ' + seed, cx, GAME_H * 0.92);
 
   ctx.restore();
+
+  return {
+    raceBox: { x: cx - 220, y: raceY, w: 440, h: 100 },
+    carBox: { x: cx - 220, y: carY, w: 440, h: 80 },
+  };
 }
 
 export function drawCountdown(ctx, number) {
@@ -408,14 +485,36 @@ export function drawFinishScreen(ctx, raceTime, delta, isNewRecord) {
     ctx.fillText(`${sign}${formatTime(Math.abs(delta))}`, GAME_W / 2, GAME_H * 0.55);
   }
 
+  // RETRY button
+  const cx = GAME_W / 2;
+  const retryY = GAME_H * 0.66;
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctx.beginPath(); ctx.roundRect(cx - 200, retryY, 400, 80, 16); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 44px sans-serif';
+  ctx.fillText('RETRY', cx, retryY + 42);
+
+  // MAIN MENU button
+  const menuY = GAME_H * 0.74;
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.beginPath(); ctx.roundRect(cx - 200, menuY, 400, 70, 16); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  ctx.lineWidth = 1; ctx.stroke();
   ctx.fillStyle = '#aaa';
-  ctx.font = '52px sans-serif';
-  ctx.fillText('Tap to Race Again', GAME_W / 2, GAME_H * 0.70);
+  ctx.font = '36px sans-serif';
+  ctx.fillText('MAIN MENU', cx, menuY + 37);
 
   ctx.restore();
+  return {
+    retryBox: { x: cx - 200, y: retryY, w: 400, h: 80 },
+    menuBox: { x: cx - 200, y: menuY, w: 400, h: 70 },
+  };
 }
 
 export function drawCrashScreen(ctx) {
+  const cx = GAME_W / 2;
   ctx.save();
   ctx.fillStyle = 'rgba(180,0,0,0.55)';
   ctx.fillRect(0, 0, GAME_W, GAME_H);
@@ -424,13 +523,33 @@ export function drawCrashScreen(ctx) {
   ctx.font = 'bold 130px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('CRASH!', GAME_W / 2, GAME_H * 0.40);
+  ctx.fillText('CRASH!', cx, GAME_H * 0.35);
 
-  ctx.fillStyle = '#eee';
-  ctx.font = '56px sans-serif';
-  ctx.fillText('Tap to Retry', GAME_W / 2, GAME_H * 0.55);
+  // RETRY button
+  const retryY = GAME_H * 0.52;
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctx.beginPath(); ctx.roundRect(cx - 200, retryY, 400, 80, 16); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 44px sans-serif';
+  ctx.fillText('RETRY', cx, retryY + 42);
+
+  // MAIN MENU button
+  const menuY = GAME_H * 0.60;
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.beginPath(); ctx.roundRect(cx - 200, menuY, 400, 70, 16); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  ctx.lineWidth = 1; ctx.stroke();
+  ctx.fillStyle = '#ddd';
+  ctx.font = '36px sans-serif';
+  ctx.fillText('MAIN MENU', cx, menuY + 37);
 
   ctx.restore();
+  return {
+    retryBox: { x: cx - 200, y: retryY, w: 400, h: 80 },
+    menuBox: { x: cx - 200, y: menuY, w: 400, h: 70 },
+  };
 }
 
 // ── Steering wheel ───────────────────────────────────────────────────────────
@@ -601,4 +720,134 @@ export function drawMinimap(ctx, track, centerLine, carX, carY, speed, startAngl
   ctx.textBaseline = 'bottom';
   ctx.fillText(`${kph} km/h`, mapCx, mapY - 12);
   ctx.restore();
+}
+
+// ── Car selection screen ─────────────────────────────────────────────────────
+
+/**
+ * Draw the car selection screen.
+ * @param {number} selectedStyle - index of currently selected style (0-4)
+ * @param {number} hue - current hue (0-360)
+ * @returns {{ styleBoxes: {x,y,w,h,index}[], sliderBox: {x,y,w,h} }} hit areas for input
+ */
+export function drawCarSelect(ctx, selectedStyle, hue) {
+  const cx = GAME_W / 2;
+
+  // Dark overlay
+  ctx.fillStyle = 'rgba(0,0,0,0.88)';
+  ctx.fillRect(0, 0, GAME_W, GAME_H);
+
+  // Title
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 56px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('CHOOSE YOUR CAR', cx, 80);
+
+  const { bodyColor, wingColor } = hueToColors(hue);
+
+  // --- 5 car options: 3 on top row, 2 on bottom row ---
+  // Square boxes, cars scaled to fit inside with padding
+  const boxSize = Math.floor((GAME_W - 80) / 3); // 3 per row with margins
+  const carScale = boxSize / (CAR_H * 1.4); // scale so car height fits with padding
+  const gap = 20;
+  const gridLeft = (GAME_W - boxSize * 3 - gap * 2) / 2;
+  const row1Top = 140;
+  const row2Top = row1Top + boxSize + gap;
+  const styleBoxes = [];
+
+  const positions = [
+    { col: 0, row: 0 }, { col: 1, row: 0 }, { col: 2, row: 0 },
+    { col: 0.5, row: 1 }, { col: 1.5, row: 1 },
+  ];
+
+  for (let i = 0; i < CAR_STYLES.length; i++) {
+    const pos = positions[i];
+    const bx = gridLeft + pos.col * (boxSize + gap);
+    const by = pos.row === 0 ? row1Top : row2Top;
+    const boxCx = bx + boxSize / 2;
+    const boxCy = by + boxSize / 2;
+
+    // Selection box (square)
+    if (i === selectedStyle) {
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.roundRect(bx, by, boxSize, boxSize, 10); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      ctx.fill();
+    } else {
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.roundRect(bx, by, boxSize, boxSize, 10); ctx.stroke();
+    }
+
+    // Draw car centered in box, offset up to leave room for label
+    ctx.save();
+    ctx.translate(boxCx, boxCy - 16);
+    ctx.scale(carScale, carScale);
+    CAR_STYLES[i].draw(ctx, bodyColor, wingColor);
+    ctx.restore();
+
+    // Label below car
+    ctx.fillStyle = i === selectedStyle ? '#fff' : '#777';
+    ctx.font = '22px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(CAR_STYLES[i].name, boxCx, by + boxSize - 6);
+
+    styleBoxes.push({ x: bx, y: by, w: boxSize, h: boxSize, index: i });
+  }
+
+  // --- Hue slider ---
+  const sliderY = row2Top + boxSize + 50;
+  const sliderW = GAME_W * 0.75;
+  const sliderH = 50;
+  const sliderX = cx - sliderW / 2;
+
+  ctx.fillStyle = '#aaa';
+  ctx.font = '30px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('COLOR', cx, sliderY - 12);
+
+  // Rainbow gradient
+  const grad = ctx.createLinearGradient(sliderX, 0, sliderX + sliderW, 0);
+  for (let i = 0; i <= 6; i++) {
+    grad.addColorStop(i / 6, `hsl(${(i / 6) * 360}, 80%, 55%)`);
+  }
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.roundRect(sliderX, sliderY, sliderW, sliderH, 10);
+  ctx.fill();
+
+  // Thumb
+  const thumbX = sliderX + (hue / 360) * sliderW;
+  ctx.fillStyle = '#fff';
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(thumbX, sliderY + sliderH / 2, 22, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = bodyColor;
+  ctx.beginPath();
+  ctx.arc(thumbX, sliderY + sliderH / 2, 14, 0, Math.PI * 2);
+  ctx.fill();
+
+  // --- RACE button ---
+  const goY = sliderY + sliderH + 80;
+  ctx.fillStyle = bodyColor;
+  ctx.beginPath();
+  ctx.roundRect(cx - 200, goY, 400, 90, 18);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 52px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('RACE!', cx, goY + 45);
+
+  const sliderBox = { x: sliderX, y: sliderY - 10, w: sliderW, h: sliderH + 20 };
+  const goBox = { x: cx - 200, y: goY, w: 400, h: 90 };
+
+  return { styleBoxes, sliderBox, goBox };
 }

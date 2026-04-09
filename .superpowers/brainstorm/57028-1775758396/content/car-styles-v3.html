@@ -1,0 +1,286 @@
+<h2>Formula Car Styles — Narrower Front Wings</h2>
+<p class="subtitle">Front wings 10% narrower — click to select</p>
+
+<div class="cards">
+  <div class="card" data-choice="f" onclick="toggleSelect(this)">
+    <div class="card-image"><canvas id="carF" width="200" height="360" style="width:100%;height:auto;border-radius:6px;background:#3d3d3d;"></canvas></div>
+    <div class="card-body"><h3>F. Wide Wings</h3><p>Massive front and rear wings, narrow waist</p></div>
+  </div>
+  <div class="card" data-choice="g" onclick="toggleSelect(this)">
+    <div class="card-image"><canvas id="carG" width="200" height="360" style="width:100%;height:auto;border-radius:6px;background:#3d3d3d;"></canvas></div>
+    <div class="card-body"><h3>G. Swept Aero</h3><p>Swept-back front wing, double-deck rear wing</p></div>
+  </div>
+  <div class="card" data-choice="h" onclick="toggleSelect(this)">
+    <div class="card-image"><canvas id="carH" width="200" height="360" style="width:100%;height:auto;border-radius:6px;background:#3d3d3d;"></canvas></div>
+    <div class="card-body"><h3>H. Endplate Beast</h3><p>Bold endplates, chunky tires</p></div>
+  </div>
+  <div class="card" data-choice="i" onclick="toggleSelect(this)">
+    <div class="card-image"><canvas id="carI" width="200" height="360" style="width:100%;height:auto;border-radius:6px;background:#3d3d3d;"></canvas></div>
+    <div class="card-body"><h3>I. Layered Wing</h3><p>Multi-element stacked wings, white stripe</p></div>
+  </div>
+  <div class="card" data-choice="j" onclick="toggleSelect(this)">
+    <div class="card-image"><canvas id="carJ" width="200" height="360" style="width:100%;height:auto;border-radius:6px;background:#3d3d3d;"></canvas></div>
+    <div class="card-body"><h3>J. Arrow Aero</h3><p>Sharp arrow body, dramatic wing platforms</p></div>
+  </div>
+</div>
+
+<script>
+const S = 2.5;
+const W = 64, H = 141;
+
+function setupCanvas(id) {
+  const c = document.getElementById(id);
+  const ctx = c.getContext('2d');
+  ctx.translate(100, 180);
+  ctx.scale(S, S);
+  return ctx;
+}
+
+// F. Wide Wings
+function drawCarF(ctx) {
+  const w = W, h = H;
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath(); ctx.ellipse(2, 2, w*0.55, h*0.4, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(-w*0.5, h*0.08, w*0.17, h*0.24);
+  ctx.fillRect(w*0.33, h*0.08, w*0.17, h*0.24);
+  ctx.fillRect(-w*0.48, -h*0.3, w*0.14, h*0.18);
+  ctx.fillRect(w*0.34, -h*0.3, w*0.14, h*0.18);
+  // Rear wing (unchanged)
+  ctx.fillStyle = '#cc2020';
+  ctx.fillRect(-w*0.6, h*0.34, w*1.2, h*0.05);
+  ctx.fillRect(-w*0.62, h*0.26, w*0.06, h*0.15);
+  ctx.fillRect(w*0.56, h*0.26, w*0.06, h*0.15);
+  ctx.fillStyle = '#aa1818';
+  ctx.fillRect(-w*0.55, h*0.28, w*1.1, h*0.03);
+  // Body
+  ctx.fillStyle = '#e63030';
+  ctx.beginPath();
+  ctx.moveTo(0, -h*0.44); ctx.lineTo(w*0.18, -h*0.2); ctx.lineTo(w*0.24, 0);
+  ctx.lineTo(w*0.28, h*0.25); ctx.lineTo(-w*0.28, h*0.25); ctx.lineTo(-w*0.24, 0);
+  ctx.lineTo(-w*0.18, -h*0.2); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#111';
+  ctx.beginPath(); ctx.ellipse(0, -h*0.08, w*0.13, h*0.1, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#d02828';
+  ctx.fillRect(-w*0.34, -h*0.02, w*0.12, h*0.2);
+  ctx.fillRect(w*0.22, -h*0.02, w*0.12, h*0.2);
+  // Front wing (10% narrower: 0.58->0.522, 0.6->0.54, 0.54->0.486, 0.52->0.468)
+  ctx.fillStyle = '#cc2020';
+  ctx.fillRect(-w*0.522, -h*0.36, w*1.044, h*0.04);
+  ctx.fillRect(-w*0.54, -h*0.4, w*0.06, h*0.1);
+  ctx.fillRect(w*0.48, -h*0.4, w*0.06, h*0.1);
+  ctx.fillStyle = '#aa1818';
+  ctx.fillRect(-w*0.468, -h*0.32, w*0.936, h*0.025);
+  // Nose
+  ctx.fillStyle = '#e63030';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.06, -h*0.44); ctx.lineTo(w*0.06, -h*0.44);
+  ctx.lineTo(w*0.04, -h*0.48); ctx.lineTo(-w*0.04, -h*0.48);
+  ctx.closePath(); ctx.fill();
+}
+
+// G. Swept Aero
+function drawCarG(ctx) {
+  const w = W, h = H;
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath(); ctx.ellipse(2, 2, w*0.5, h*0.4, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(-w*0.5, h*0.06, w*0.16, h*0.25);
+  ctx.fillRect(w*0.34, h*0.06, w*0.16, h*0.25);
+  ctx.fillRect(-w*0.46, -h*0.3, w*0.14, h*0.17);
+  ctx.fillRect(w*0.32, -h*0.3, w*0.14, h*0.17);
+  // Rear wing (unchanged)
+  ctx.fillStyle = '#cc2020';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.55, h*0.38); ctx.lineTo(-w*0.48, h*0.32);
+  ctx.lineTo(w*0.48, h*0.32); ctx.lineTo(w*0.55, h*0.38); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#dd3030';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.5, h*0.30); ctx.lineTo(-w*0.42, h*0.26);
+  ctx.lineTo(w*0.42, h*0.26); ctx.lineTo(w*0.5, h*0.30); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#222';
+  ctx.fillRect(-w*0.56, h*0.22, w*0.06, h*0.18);
+  ctx.fillRect(w*0.50, h*0.22, w*0.06, h*0.18);
+  ctx.fillStyle = '#444';
+  ctx.fillRect(-w*0.1, h*0.22, w*0.04, h*0.12);
+  ctx.fillRect(w*0.06, h*0.22, w*0.04, h*0.12);
+  // Body
+  ctx.fillStyle = '#e63030';
+  ctx.beginPath();
+  ctx.moveTo(0, -h*0.46); ctx.lineTo(w*0.2, -h*0.18); ctx.lineTo(w*0.26, h*0.05);
+  ctx.lineTo(w*0.22, h*0.3); ctx.lineTo(-w*0.22, h*0.3); ctx.lineTo(-w*0.26, h*0.05);
+  ctx.lineTo(-w*0.2, -h*0.18); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#111';
+  ctx.fillRect(-w*0.1, -h*0.12, w*0.2, h*0.16);
+  ctx.fillStyle = '#222';
+  ctx.fillRect(-w*0.05, -h*0.2, w*0.1, h*0.06);
+  // Front wing (10% narrower: 0.52->0.468, 0.54->0.486, 0.49->0.441)
+  ctx.fillStyle = '#cc2020';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.12, -h*0.38); ctx.lineTo(-w*0.468, -h*0.3);
+  ctx.lineTo(-w*0.468, -h*0.33); ctx.lineTo(-w*0.12, -h*0.41);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(w*0.12, -h*0.38); ctx.lineTo(w*0.468, -h*0.3);
+  ctx.lineTo(w*0.468, -h*0.33); ctx.lineTo(w*0.12, -h*0.41);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#222';
+  ctx.fillRect(-w*0.486, -h*0.35, w*0.05, h*0.08);
+  ctx.fillRect(w*0.441, -h*0.35, w*0.05, h*0.08);
+}
+
+// H. Endplate Beast
+function drawCarH(ctx) {
+  const w = W, h = H;
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath(); ctx.ellipse(2, 2, w*0.5, h*0.42, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(-w*0.52, h*0.04, w*0.2, h*0.28);
+  ctx.fillRect(w*0.32, h*0.04, w*0.2, h*0.28);
+  ctx.fillRect(-w*0.48, -h*0.32, w*0.16, h*0.2);
+  ctx.fillRect(w*0.32, -h*0.32, w*0.16, h*0.2);
+  // Rear wing (unchanged)
+  ctx.fillStyle = '#cc2020';
+  ctx.fillRect(-w*0.48, h*0.32, w*0.96, h*0.05);
+  ctx.fillStyle = '#e63030';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.52, h*0.22); ctx.lineTo(-w*0.48, h*0.22);
+  ctx.lineTo(-w*0.48, h*0.4); ctx.lineTo(-w*0.56, h*0.4); ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(w*0.52, h*0.22); ctx.lineTo(w*0.48, h*0.22);
+  ctx.lineTo(w*0.48, h*0.4); ctx.lineTo(w*0.56, h*0.4); ctx.closePath(); ctx.fill();
+  // Body
+  ctx.fillStyle = '#e63030';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.06, -h*0.46); ctx.lineTo(w*0.06, -h*0.46);
+  ctx.lineTo(w*0.22, -h*0.2); ctx.lineTo(w*0.28, h*0.1);
+  ctx.lineTo(w*0.24, h*0.32); ctx.lineTo(-w*0.24, h*0.32);
+  ctx.lineTo(-w*0.28, h*0.1); ctx.lineTo(-w*0.22, -h*0.2);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#111';
+  ctx.beginPath(); ctx.ellipse(0, -h*0.06, w*0.14, h*0.1, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#d02828';
+  ctx.fillRect(-w*0.36, -h*0.02, w*0.12, h*0.22);
+  ctx.fillRect(w*0.24, -h*0.02, w*0.12, h*0.22);
+  // Front wing (10% narrower: 0.52->0.468, 0.56->0.504, 0.48->0.432)
+  ctx.fillStyle = '#cc2020';
+  ctx.fillRect(-w*0.468, -h*0.35, w*0.936, h*0.04);
+  ctx.fillStyle = '#e63030';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.504, -h*0.4); ctx.lineTo(-w*0.468, -h*0.4);
+  ctx.lineTo(-w*0.432, -h*0.28); ctx.lineTo(-w*0.504, -h*0.28);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(w*0.504, -h*0.4); ctx.lineTo(w*0.468, -h*0.4);
+  ctx.lineTo(w*0.432, -h*0.28); ctx.lineTo(w*0.504, -h*0.28);
+  ctx.closePath(); ctx.fill();
+}
+
+// I. Layered Wing
+function drawCarI(ctx) {
+  const w = W, h = H;
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath(); ctx.ellipse(2, 2, w*0.48, h*0.4, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(-w*0.5, h*0.06, w*0.16, h*0.25);
+  ctx.fillRect(w*0.34, h*0.06, w*0.16, h*0.25);
+  ctx.fillRect(-w*0.46, -h*0.3, w*0.14, h*0.17);
+  ctx.fillRect(w*0.32, -h*0.3, w*0.14, h*0.17);
+  // Rear wing (unchanged)
+  ctx.fillStyle = '#222';
+  ctx.fillRect(-w*0.5, h*0.2, w*0.05, h*0.2);
+  ctx.fillRect(w*0.45, h*0.2, w*0.05, h*0.2);
+  ctx.fillStyle = '#cc2020';
+  ctx.fillRect(-w*0.52, h*0.36, w*1.04, h*0.035);
+  ctx.fillStyle = '#dd3535';
+  ctx.fillRect(-w*0.50, h*0.31, w*1.0, h*0.03);
+  ctx.fillStyle = '#ee4545';
+  ctx.fillRect(-w*0.48, h*0.265, w*0.96, h*0.025);
+  // Body
+  ctx.fillStyle = '#e63030';
+  ctx.beginPath();
+  ctx.moveTo(0, -h*0.44); ctx.lineTo(w*0.15, -h*0.22); ctx.lineTo(w*0.22, 0);
+  ctx.lineTo(w*0.22, h*0.22); ctx.lineTo(-w*0.22, h*0.22); ctx.lineTo(-w*0.22, 0);
+  ctx.lineTo(-w*0.15, -h*0.22); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.moveTo(0, -h*0.44); ctx.lineTo(w*0.03, -h*0.22); ctx.lineTo(w*0.03, h*0.22);
+  ctx.lineTo(-w*0.03, h*0.22); ctx.lineTo(-w*0.03, -h*0.22); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#111';
+  ctx.beginPath(); ctx.ellipse(0, -h*0.06, w*0.12, h*0.1, 0, 0, Math.PI*2); ctx.fill();
+  // Front wing (10% narrower: 0.5->0.45, 0.48->0.432, 0.45->0.405, 0.52->0.468, 0.47->0.423)
+  ctx.fillStyle = '#cc2020';
+  ctx.fillRect(-w*0.45, -h*0.36, w*0.9, h*0.03);
+  ctx.fillStyle = '#dd3535';
+  ctx.fillRect(-w*0.432, -h*0.32, w*0.864, h*0.025);
+  ctx.fillStyle = '#ee4545';
+  ctx.fillRect(-w*0.405, -h*0.285, w*0.81, h*0.02);
+  ctx.fillStyle = '#222';
+  ctx.fillRect(-w*0.468, -h*0.39, w*0.05, h*0.13);
+  ctx.fillRect(w*0.423, -h*0.39, w*0.05, h*0.13);
+}
+
+// J. Arrow Aero
+function drawCarJ(ctx) {
+  const w = W, h = H;
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath();
+  ctx.moveTo(0, -h*0.42); ctx.lineTo(w*0.45, h*0.3); ctx.lineTo(-w*0.45, h*0.3);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(-w*0.52, h*0.06, w*0.17, h*0.26);
+  ctx.fillRect(w*0.35, h*0.06, w*0.17, h*0.26);
+  ctx.fillRect(-w*0.48, -h*0.28, w*0.14, h*0.16);
+  ctx.fillRect(w*0.34, -h*0.28, w*0.14, h*0.16);
+  // Rear wing (unchanged)
+  ctx.fillStyle = '#cc2020';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.58, h*0.4); ctx.lineTo(-w*0.54, h*0.3);
+  ctx.lineTo(w*0.54, h*0.3); ctx.lineTo(w*0.58, h*0.4); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#aa1818';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.6, h*0.42); ctx.lineTo(-w*0.56, h*0.24);
+  ctx.lineTo(-w*0.52, h*0.24); ctx.lineTo(-w*0.56, h*0.42); ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(w*0.6, h*0.42); ctx.lineTo(w*0.56, h*0.24);
+  ctx.lineTo(w*0.52, h*0.24); ctx.lineTo(w*0.56, h*0.42); ctx.closePath(); ctx.fill();
+  // Body
+  ctx.fillStyle = '#e63030';
+  ctx.beginPath();
+  ctx.moveTo(0, -h*0.48); ctx.lineTo(w*0.1, -h*0.28); ctx.lineTo(w*0.32, h*0.05);
+  ctx.lineTo(w*0.28, h*0.32); ctx.lineTo(-w*0.28, h*0.32); ctx.lineTo(-w*0.32, h*0.05);
+  ctx.lineTo(-w*0.1, -h*0.28); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#c82525';
+  ctx.beginPath();
+  ctx.moveTo(w*0.1, -h*0.28); ctx.lineTo(w*0.32, h*0.05);
+  ctx.lineTo(w*0.28, h*0.2); ctx.lineTo(w*0.08, h*0.2); ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(-w*0.1, -h*0.28); ctx.lineTo(-w*0.32, h*0.05);
+  ctx.lineTo(-w*0.28, h*0.2); ctx.lineTo(-w*0.08, h*0.2); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#111';
+  ctx.beginPath();
+  ctx.moveTo(0, -h*0.16); ctx.lineTo(w*0.1, -h*0.02);
+  ctx.lineTo(0, h*0.1); ctx.lineTo(-w*0.1, -h*0.02); ctx.closePath(); ctx.fill();
+  // Front wing (10% narrower: 0.54->0.486, 0.56->0.504, 0.52->0.468, 0.58->0.522)
+  ctx.fillStyle = '#cc2020';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.1, -h*0.38); ctx.lineTo(-w*0.486, -h*0.26);
+  ctx.lineTo(-w*0.486, -h*0.3); ctx.lineTo(-w*0.1, -h*0.42); ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(w*0.1, -h*0.38); ctx.lineTo(w*0.486, -h*0.26);
+  ctx.lineTo(w*0.486, -h*0.3); ctx.lineTo(w*0.1, -h*0.42); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#aa1818';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.504, -h*0.22); ctx.lineTo(-w*0.468, -h*0.22);
+  ctx.lineTo(-w*0.504, -h*0.34); ctx.lineTo(-w*0.522, -h*0.34); ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(w*0.504, -h*0.22); ctx.lineTo(w*0.468, -h*0.22);
+  ctx.lineTo(w*0.504, -h*0.34); ctx.lineTo(w*0.522, -h*0.34); ctx.closePath(); ctx.fill();
+}
+
+drawCarF(setupCanvas('carF'));
+drawCarG(setupCanvas('carG'));
+drawCarH(setupCanvas('carH'));
+drawCarI(setupCanvas('carI'));
+drawCarJ(setupCanvas('carJ'));
+</script>

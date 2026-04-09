@@ -1,16 +1,18 @@
 import { GAME_W, GAME_H, TILE, FIXED_DT, GHOST_ALPHA } from './constants.js';
-import { generateTrack, buildTrackPath, buildWallPaths, createWallBodies } from './track.js';
+import { generateTrack, buildTrackPath, buildWallPaths, createWallBodies, buildCurbArcs, buildBrakeMarkers } from './track.js';
 import { Camera } from './camera.js';
 import {
   drawTrack, drawCar, drawHUD,
   drawTitleScreen, drawCountdown, drawFinishScreen, drawCrashScreen,
-  drawSteeringWheel, drawMinimap,
+  drawSteeringWheel, drawMinimap, drawCarSelect,
 } from './renderer.js';
 import { Car } from './car.js';
 import { Input } from './input.js';
 import { Ghost } from './ghost.js';
 import { GameState } from './game.js';
 import { World, Vec2 } from '../physics2d/index.js';
+import { SkidMarks } from './skidmarks.js';
+import { drawStyledCar, loadCarConfig, saveCarConfig, hueToColors } from './car-styles.js';
 
 // ── DPR-aware canvas setup ────────────────────────────────────────────────────
 
@@ -73,8 +75,8 @@ function alphaToSeed(str) {
 
 // ── Track initialization ──────────────────────────────────────────────────────
 
-let world, track, centerLine, walls, wallBodies;
-let car, ghost, gameState;
+let world, track, centerLine, walls, wallBodies, curbs, brakeMarkers;
+let car, ghost, gameState, skidmarks;
 let currentSeed = Date.now();
 let currentSeedAlpha = seedToAlpha(currentSeed);
 let trackStartAngle = 0;
@@ -91,6 +93,8 @@ function initTrack(seed) {
   centerLine = buildTrackPath(track);
   walls = buildWallPaths(centerLine);
   wallBodies = createWallBodies(world, walls);
+  curbs = buildCurbArcs(track);
+  brakeMarkers = buildBrakeMarkers(track);
 
   // Ghost system for this seed
   ghost = new Ghost(seed);
@@ -130,6 +134,7 @@ function spawnCar() {
   car.spawn(startX, startY, startAngle);
   trackStartAngle = startAngle;
   hasLeftStart = false;
+  skidmarks = new SkidMarks();
 }
 
 // ── Input ─────────────────────────────────────────────────────────────────────
@@ -163,29 +168,102 @@ function checkFinishLine() {
   return dist < TILE * 0.4;
 }
 
-// ── Tap / click handling ──────────────────────────────────────────────────────
+// ── Car customization ────────────────────────────────────────────────────────
 
-let lastTapTime = 0;
-const DOUBLE_TAP_MS = 400;
+let carConfig = loadCarConfig();
+let carSelectHitAreas = null;
+let titleHitAreas = null;
+let finishHitAreas = null;
+let crashHitAreas = null;
+let isDraggingSlider = false;
 
-function handleTap() {
-  const now = performance.now();
-  const isDoubleTap = (now - lastTapTime) < DOUBLE_TAP_MS;
-  lastTapTime = now;
+// ── Click handling ───────────────────────────────────────────────────────────
 
-  if (gameState.state === 'title') {
-    gameState.startCountdown();
-  } else if (gameState.state === 'finished' || gameState.state === 'crashed') {
-    if (isDoubleTap) {
-      // New track with new seed
-      initTrack(Date.now());
-    } else {
-      // Retry same track — go back to title
+function clientToGame(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (clientX - rect.left) * (GAME_W / rect.width),
+    y: (clientY - rect.top) * (GAME_H / rect.height),
+  };
+}
+
+function hitTest(gx, gy, box) {
+  return box && gx >= box.x && gx <= box.x + box.w && gy >= box.y && gy <= box.y + box.h;
+}
+
+function handleClick(clientX, clientY) {
+  const { x, y } = clientToGame(clientX, clientY);
+
+  if (gameState.state === 'title' && titleHitAreas) {
+    if (hitTest(x, y, titleHitAreas.raceBox)) {
+      gameState.startCountdown();
+    } else if (hitTest(x, y, titleHitAreas.carBox)) {
+      gameState.state = 'carselect';
+    }
+  } else if (gameState.state === 'finished' && finishHitAreas) {
+    if (hitTest(x, y, finishHitAreas.retryBox)) {
+      ghost.resetRecording();
+      spawnCar();
+      gameState.startCountdown();
+    } else if (hitTest(x, y, finishHitAreas.menuBox)) {
+      ghost.resetRecording();
+      spawnCar();
+      gameState.reset();
+    }
+  } else if (gameState.state === 'crashed' && crashHitAreas) {
+    if (hitTest(x, y, crashHitAreas.retryBox)) {
+      ghost.resetRecording();
+      spawnCar();
+      gameState.startCountdown();
+    } else if (hitTest(x, y, crashHitAreas.menuBox)) {
       ghost.resetRecording();
       spawnCar();
       gameState.reset();
     }
   }
+}
+
+function handleCarSelectClick(clientX, clientY) {
+  if (!carSelectHitAreas) return;
+  const { x, y } = clientToGame(clientX, clientY);
+
+  // Check style boxes
+  for (const box of carSelectHitAreas.styleBoxes) {
+    if (x >= box.x && x <= box.x + box.w && y >= box.y && y <= box.y + box.h) {
+      carConfig.styleIndex = box.index;
+      saveCarConfig(carConfig.styleIndex, carConfig.hue);
+      return;
+    }
+  }
+
+  // Check slider
+  const sl = carSelectHitAreas.sliderBox;
+  if (x >= sl.x && x <= sl.x + sl.w && y >= sl.y && y <= sl.y + sl.h) {
+    carConfig.hue = Math.round(((x - sl.x) / sl.w) * 360) % 360;
+    saveCarConfig(carConfig.styleIndex, carConfig.hue);
+    isDraggingSlider = true;
+    return;
+  }
+
+  // Check GO button
+  const go = carSelectHitAreas.goBox;
+  if (x >= go.x && x <= go.x + go.w && y >= go.y && y <= go.y + go.h) {
+    gameState.startCountdown();
+    return;
+  }
+}
+
+function handleCarSelectDrag(clientX, clientY) {
+  if (!isDraggingSlider || !carSelectHitAreas) return;
+  const { x } = clientToGame(clientX, clientY);
+  const sl = carSelectHitAreas.sliderBox;
+  const t = Math.max(0, Math.min(1, (x - sl.x) / sl.w));
+  carConfig.hue = Math.round(t * 360) % 360;
+  saveCarConfig(carConfig.styleIndex, carConfig.hue);
+}
+
+function handleCarSelectRelease() {
+  isDraggingSlider = false;
 }
 
 // Track pointer down position to distinguish taps from drags
@@ -196,13 +274,26 @@ const TAP_THRESHOLD = 15; // max pixels moved to count as a tap
 canvas.addEventListener('pointerdown', (e) => {
   pointerDownX = e.clientX;
   pointerDownY = e.clientY;
+  if (gameState.state === 'carselect') {
+    handleCarSelectClick(e.clientX, e.clientY);
+  }
+});
+
+window.addEventListener('pointermove', (e) => {
+  if (gameState.state === 'carselect') {
+    handleCarSelectDrag(e.clientX, e.clientY);
+  }
 });
 
 canvas.addEventListener('pointerup', (e) => {
+  if (gameState.state === 'carselect') {
+    handleCarSelectRelease();
+    return;
+  }
   const dx = e.clientX - pointerDownX;
   const dy = e.clientY - pointerDownY;
   if (Math.abs(dx) < TAP_THRESHOLD && Math.abs(dy) < TAP_THRESHOLD) {
-    handleTap();
+    handleClick(e.clientX, e.clientY);
   }
 });
 
@@ -252,6 +343,9 @@ function fixedUpdate() {
     world.step(FIXED_DT);
     car.postPhysicsUpdate();
 
+    // Skid marks
+    skidmarks.update(car.physX, car.physY, car.physAngle, input.steering, car.speed);
+
     // Record ghost
     ghost.record(car.physX, car.physY, car.physAngle);
 
@@ -278,6 +372,7 @@ function fixedUpdate() {
     car.update(input.steering);
     world.step(FIXED_DT);
     car.postPhysicsUpdate();
+    skidmarks.update(car.physX, car.physY, car.physAngle, input.steering, car.speed);
 
     // Keep recording ghost
     ghost.record(car.physX, car.physY, car.physAngle);
@@ -309,18 +404,21 @@ function render() {
   camera.apply(ctx);
 
   // Track
-  drawTrack(ctx, track, walls, centerLine);
+  drawTrack(ctx, track, walls, centerLine, curbs, brakeMarkers);
+
+  // Skid marks (on track surface, before cars)
+  skidmarks.draw(ctx);
 
   // Ghost car (draw behind player)
   if (state === 'racing' || state === 'countdown' || state === 'finishing') {
     const ghostFrame = ghost.getGhostFrame();
     if (ghostFrame) {
-      drawCar(ctx, ghostFrame.x, ghostFrame.y, ghostFrame.angle, '#3366cc', '#4477dd', GHOST_ALPHA);
+      drawStyledCar(ctx, ghostFrame.x, ghostFrame.y, ghostFrame.angle, carConfig.styleIndex, carConfig.hue + 180, GHOST_ALPHA);
     }
   }
 
   // Player car
-  drawCar(ctx, car.x, car.y, car.angle, '#e63030', '#222', 1);
+  drawStyledCar(ctx, car.x, car.y, car.angle, carConfig.styleIndex, carConfig.hue, 1);
 
   camera.restore(ctx);
 
@@ -340,23 +438,25 @@ function render() {
 
   // Overlays
   if (state === 'title') {
-    drawTitleScreen(ctx, currentSeedAlpha);
+    const { bodyColor } = hueToColors(carConfig.hue);
+    titleHitAreas = drawTitleScreen(ctx, currentSeedAlpha, bodyColor);
+  } else if (state === 'carselect') {
+    carSelectHitAreas = drawCarSelect(ctx, carConfig.styleIndex, carConfig.hue);
   } else if (state === 'countdown') {
     drawCountdown(ctx, gameState.countdownNumber);
   } else if (state === 'racing' && gameState.raceTime < 500) {
-    // Show lights-off briefly after race starts
     drawCountdown(ctx, 0);
   } else if (state === 'finished') {
     const bestTimeSec = ghost.bestTime !== null ? ghost.bestTime / 1000 : null;
     drawHUD(ctx, gameState.raceTime / 1000, bestTimeSec, 0, currentSeedAlpha);
-    drawFinishScreen(
+    finishHitAreas = drawFinishScreen(
       ctx,
       gameState.raceTime / 1000,
       gameState.finishDelta !== null ? gameState.finishDelta / 1000 : null,
       gameState.isNewRecord
     );
   } else if (state === 'crashed') {
-    drawCrashScreen(ctx);
+    crashHitAreas = drawCrashScreen(ctx);
   }
 }
 

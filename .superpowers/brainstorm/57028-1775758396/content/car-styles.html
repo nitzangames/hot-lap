@@ -1,0 +1,348 @@
+<h2>Formula Car Styles</h2>
+<p class="subtitle">All drawn at 64px wide, 141px tall — click to select</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image"><canvas id="carA" width="200" height="360" style="width:100%;height:auto;border-radius:6px;background:#3d3d3d;"></canvas></div>
+    <div class="card-body"><h3>A. Current (Detailed)</h3><p>Tapered nose, cockpit ellipse, sidepods, endplates, tire highlights</p></div>
+  </div>
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image"><canvas id="carB" width="200" height="360" style="width:100%;height:auto;border-radius:6px;background:#3d3d3d;"></canvas></div>
+    <div class="card-body"><h3>B. Minimal Wedge</h3><p>Simple wedge shape, clean lines, no fuss</p></div>
+  </div>
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image"><canvas id="carC" width="200" height="360" style="width:100%;height:auto;border-radius:6px;background:#3d3d3d;"></canvas></div>
+    <div class="card-body"><h3>C. Blocky Retro</h3><p>Chunky rectangles, old-school arcade feel</p></div>
+  </div>
+  <div class="card" data-choice="d" onclick="toggleSelect(this)">
+    <div class="card-image"><canvas id="carD" width="200" height="360" style="width:100%;height:auto;border-radius:6px;background:#3d3d3d;"></canvas></div>
+    <div class="card-body"><h3>D. Rounded Pod</h3><p>Smooth rounded body, bubble cockpit, organic feel</p></div>
+  </div>
+  <div class="card" data-choice="e" onclick="toggleSelect(this)">
+    <div class="card-image"><canvas id="carE" width="200" height="360" style="width:100%;height:auto;border-radius:6px;background:#3d3d3d;"></canvas></div>
+    <div class="card-body"><h3>E. Arrow</h3><p>Sharp arrow/dart shape, aggressive angles, speed lines</p></div>
+  </div>
+</div>
+
+<script>
+const S = 2.5; // scale factor for visibility
+const W = 64, H = 141;
+
+function setupCanvas(id) {
+  const c = document.getElementById(id);
+  const ctx = c.getContext('2d');
+  ctx.translate(100, 180);
+  ctx.scale(S, S);
+  return ctx;
+}
+
+// A. Current (Detailed) — matches existing renderer.js
+function drawCarA(ctx) {
+  const w = W, h = H;
+  const bodyW = w * 0.55;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.beginPath();
+  ctx.ellipse(0, h*0.02, w*0.55, h*0.14, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Rear wing
+  ctx.fillStyle = '#222';
+  ctx.fillRect(-w*0.48, h/2 - h*0.07, w*0.96, h*0.04);
+  ctx.fillRect(-w*0.48, h/2 - h*0.10, w*0.06, h*0.07);
+  ctx.fillRect(w*0.42, h/2 - h*0.10, w*0.06, h*0.07);
+
+  // Body
+  ctx.fillStyle = '#e63030';
+  ctx.beginPath();
+  ctx.moveTo(0, -h/2);
+  ctx.lineTo(bodyW*0.25, -h/2 + h*0.18);
+  ctx.lineTo(bodyW*0.5, -h/2 + h*0.30);
+  ctx.lineTo(bodyW*0.5, h/2 - h*0.12);
+  ctx.lineTo(bodyW*0.35, h/2);
+  ctx.lineTo(-bodyW*0.35, h/2);
+  ctx.lineTo(-bodyW*0.5, h/2 - h*0.12);
+  ctx.lineTo(-bodyW*0.5, -h/2 + h*0.30);
+  ctx.lineTo(-bodyW*0.25, -h/2 + h*0.18);
+  ctx.closePath();
+  ctx.fill();
+
+  // Cockpit
+  ctx.fillStyle = '#111';
+  ctx.beginPath();
+  const ct = -h/2 + h*0.32, cb = -h/2 + h*0.56;
+  ctx.ellipse(0, (ct+cb)/2, bodyW*0.45, (cb-ct)/2, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Sidepods
+  ctx.fillStyle = '#e63030';
+  ctx.fillRect(-bodyW*0.5 - w*0.15*0.6, -h/2+h*0.38, w*0.15*1.1, h*0.28);
+  ctx.fillRect(bodyW*0.5 - w*0.15*0.5, -h/2+h*0.38, w*0.15*1.1, h*0.28);
+
+  // Front wing
+  ctx.fillStyle = '#222';
+  ctx.fillRect(-w*0.40, -h/2+h*0.12, w*0.80, h*0.035);
+  ctx.fillRect(-w*0.40, -h/2+h*0.10, w*0.05, h*0.055);
+  ctx.fillRect(w*0.35, -h/2+h*0.10, w*0.05, h*0.055);
+
+  // Tires
+  ctx.fillStyle = '#222';
+  const tireW = w*0.20, tireH = h*0.13, tireX = bodyW*0.48;
+  ctx.fillRect(-tireX-tireW, -h/2+h*0.17, tireW, tireH);
+  ctx.fillRect(tireX, -h/2+h*0.17, tireW, tireH);
+  ctx.fillRect(-tireX-tireW, h/2-h*0.20, tireW, tireH);
+  ctx.fillRect(tireX, h/2-h*0.20, tireW, tireH);
+}
+
+// B. Minimal Wedge
+function drawCarB(ctx) {
+  const w = W, h = H;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath();
+  ctx.ellipse(2, 2, w*0.4, h*0.4, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Tires
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(-w*0.5, -h*0.28, w*0.16, h*0.22);
+  ctx.fillRect(w*0.34, -h*0.28, w*0.16, h*0.22);
+  ctx.fillRect(-w*0.5, h*0.1, w*0.16, h*0.25);
+  ctx.fillRect(w*0.34, h*0.1, w*0.16, h*0.25);
+
+  // Rear wing
+  ctx.fillStyle = '#c02020';
+  ctx.fillRect(-w*0.42, h*0.38, w*0.84, h*0.04);
+
+  // Body — simple wedge
+  ctx.fillStyle = '#e63030';
+  ctx.beginPath();
+  ctx.moveTo(0, -h*0.48);          // nose point
+  ctx.lineTo(w*0.3, -h*0.1);       // widen
+  ctx.lineTo(w*0.3, h*0.38);       // rear
+  ctx.lineTo(-w*0.3, h*0.38);
+  ctx.lineTo(-w*0.3, -h*0.1);
+  ctx.closePath();
+  ctx.fill();
+
+  // Cockpit — simple dark strip
+  ctx.fillStyle = '#111';
+  ctx.fillRect(-w*0.12, -h*0.15, w*0.24, h*0.2);
+
+  // Front wing
+  ctx.fillStyle = '#c02020';
+  ctx.fillRect(-w*0.35, -h*0.35, w*0.7, h*0.03);
+
+  // Number
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 8px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('1', 0, h*0.18);
+}
+
+// C. Blocky Retro
+function drawCarC(ctx) {
+  const w = W, h = H;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.fillRect(-w*0.4+2, -h*0.35+2, w*0.8, h*0.7);
+
+  // Tires — big chunky blocks
+  ctx.fillStyle = '#111';
+  ctx.fillRect(-w*0.52, -h*0.3, w*0.18, h*0.2);
+  ctx.fillRect(w*0.34, -h*0.3, w*0.18, h*0.2);
+  ctx.fillRect(-w*0.52, h*0.12, w*0.18, h*0.24);
+  ctx.fillRect(w*0.34, h*0.12, w*0.18, h*0.24);
+
+  // Rear wing — thick bar
+  ctx.fillStyle = '#aa1818';
+  ctx.fillRect(-w*0.45, h*0.36, w*0.9, h*0.06);
+
+  // Main body — rectangle
+  ctx.fillStyle = '#e63030';
+  ctx.fillRect(-w*0.28, -h*0.42, w*0.56, h*0.82);
+
+  // Nose — narrower rectangle
+  ctx.fillStyle = '#e63030';
+  ctx.fillRect(-w*0.14, -h*0.48, w*0.28, h*0.08);
+
+  // Cockpit — rectangle
+  ctx.fillStyle = '#222';
+  ctx.fillRect(-w*0.15, -h*0.12, w*0.3, h*0.18);
+
+  // Stripe
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(-w*0.04, -h*0.42, w*0.08, h*0.3);
+
+  // Front wing
+  ctx.fillStyle = '#aa1818';
+  ctx.fillRect(-w*0.38, -h*0.38, w*0.76, h*0.04);
+}
+
+// D. Rounded Pod
+function drawCarD(ctx) {
+  const w = W, h = H;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath();
+  ctx.ellipse(2, 2, w*0.42, h*0.42, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Tires — rounded
+  ctx.fillStyle = '#1a1a1a';
+  const tr = 3;
+  function rr(x,y,rw,rh) {
+    ctx.beginPath();
+    ctx.roundRect(x,y,rw,rh,tr);
+    ctx.fill();
+  }
+  rr(-w*0.5, -h*0.26, w*0.15, h*0.18);
+  rr(w*0.35, -h*0.26, w*0.15, h*0.18);
+  rr(-w*0.5, h*0.1, w*0.15, h*0.22);
+  rr(w*0.35, h*0.1, w*0.15, h*0.22);
+
+  // Rear wing — thin curved
+  ctx.strokeStyle = '#c02020';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-w*0.4, h*0.38);
+  ctx.quadraticCurveTo(0, h*0.42, w*0.4, h*0.38);
+  ctx.stroke();
+
+  // Body — rounded capsule shape
+  ctx.fillStyle = '#e63030';
+  ctx.beginPath();
+  ctx.ellipse(0, -h*0.05, w*0.28, h*0.42, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Nose cone — rounded
+  ctx.beginPath();
+  ctx.ellipse(0, -h*0.38, w*0.1, h*0.1, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Cockpit bubble
+  ctx.fillStyle = '#224';
+  ctx.beginPath();
+  ctx.ellipse(0, -h*0.08, w*0.18, h*0.1, 0, 0, Math.PI*2);
+  ctx.fill();
+  // Bubble highlight
+  ctx.fillStyle = 'rgba(100,150,255,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(-w*0.04, -h*0.12, w*0.08, h*0.04, -0.3, 0, Math.PI*2);
+  ctx.fill();
+
+  // Front wing — curved
+  ctx.strokeStyle = '#c02020';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-w*0.35, -h*0.32);
+  ctx.quadraticCurveTo(0, -h*0.36, w*0.35, -h*0.32);
+  ctx.stroke();
+}
+
+// E. Arrow / Dart
+function drawCarE(ctx) {
+  const w = W, h = H;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath();
+  ctx.moveTo(0, -h*0.45);
+  ctx.lineTo(w*0.4, h*0.35);
+  ctx.lineTo(-w*0.4, h*0.35);
+  ctx.closePath();
+  ctx.fill();
+
+  // Tires — angled
+  ctx.fillStyle = '#1a1a1a';
+  ctx.save();
+  ctx.translate(-w*0.38, -h*0.15);
+  ctx.rotate(-0.1);
+  ctx.fillRect(-w*0.08, -h*0.08, w*0.16, h*0.16);
+  ctx.restore();
+  ctx.save();
+  ctx.translate(w*0.38, -h*0.15);
+  ctx.rotate(0.1);
+  ctx.fillRect(-w*0.08, -h*0.08, w*0.16, h*0.16);
+  ctx.restore();
+  ctx.fillRect(-w*0.46, h*0.1, w*0.16, h*0.22);
+  ctx.fillRect(w*0.30, h*0.1, w*0.16, h*0.22);
+
+  // Rear wing — angular
+  ctx.fillStyle = '#aa1818';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.46, h*0.38);
+  ctx.lineTo(-w*0.38, h*0.34);
+  ctx.lineTo(w*0.38, h*0.34);
+  ctx.lineTo(w*0.46, h*0.38);
+  ctx.closePath();
+  ctx.fill();
+
+  // Main body — sharp arrow
+  ctx.fillStyle = '#e63030';
+  ctx.beginPath();
+  ctx.moveTo(0, -h*0.48);           // tip
+  ctx.lineTo(w*0.12, -h*0.25);      // narrow neck
+  ctx.lineTo(w*0.35, h*0.05);       // swept wing
+  ctx.lineTo(w*0.3, h*0.34);        // rear
+  ctx.lineTo(-w*0.3, h*0.34);
+  ctx.lineTo(-w*0.35, h*0.05);
+  ctx.lineTo(-w*0.12, -h*0.25);
+  ctx.closePath();
+  ctx.fill();
+
+  // Dark center stripe
+  ctx.fillStyle = '#111';
+  ctx.beginPath();
+  ctx.moveTo(0, -h*0.48);
+  ctx.lineTo(w*0.06, -h*0.2);
+  ctx.lineTo(w*0.06, h*0.34);
+  ctx.lineTo(-w*0.06, h*0.34);
+  ctx.lineTo(-w*0.06, -h*0.2);
+  ctx.closePath();
+  ctx.fill();
+
+  // Cockpit — diamond
+  ctx.fillStyle = '#224';
+  ctx.beginPath();
+  ctx.moveTo(0, -h*0.18);
+  ctx.lineTo(w*0.1, -h*0.05);
+  ctx.lineTo(0, h*0.08);
+  ctx.lineTo(-w*0.1, -h*0.05);
+  ctx.closePath();
+  ctx.fill();
+
+  // Front wing — angular
+  ctx.fillStyle = '#aa1818';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.3, -h*0.28);
+  ctx.lineTo(-w*0.12, -h*0.3);
+  ctx.lineTo(w*0.12, -h*0.3);
+  ctx.lineTo(w*0.3, -h*0.28);
+  ctx.lineTo(w*0.3, -h*0.26);
+  ctx.lineTo(-w*0.3, -h*0.26);
+  ctx.closePath();
+  ctx.fill();
+
+  // Speed accent lines on wings
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-w*0.25, h*0.05);
+  ctx.lineTo(-w*0.2, h*0.25);
+  ctx.moveTo(w*0.25, h*0.05);
+  ctx.lineTo(w*0.2, h*0.25);
+  ctx.stroke();
+}
+
+drawCarA(setupCanvas('carA'));
+drawCarB(setupCanvas('carB'));
+drawCarC(setupCanvas('carC'));
+drawCarD(setupCanvas('carD'));
+drawCarE(setupCanvas('carE'));
+</script>

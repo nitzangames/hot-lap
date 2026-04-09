@@ -136,10 +136,10 @@ export function generateTrack(seed) {
   ];
 
   // Retry with different sub-seeds if track gets stuck
-  for (let attempt = 0; attempt < 50; attempt++) {
+  for (let attempt = 0; attempt < 200; attempt++) {
     const rng = mulberry32(seed + attempt * 997);
     const targetLen = MIN_TRACK_TILES + Math.floor(rng() * (MAX_TRACK_TILES - MIN_TRACK_TILES + 1));
-    const returnBudget = 15; // max tiles for return-home phase
+    const returnBudget = 25; // max tiles for return-home phase
     const freeGenTarget = targetLen - returnBudget;
     const occupied = new Set();
     const tiles = [];
@@ -306,7 +306,8 @@ export function generateTrack(seed) {
     };
   }
 
-  throw new Error(`Failed to generate loop track for seed ${seed}`);
+  // Fallback: try a completely different seed
+  return generateTrack(seed + 7919);
 }
 
 // --- Center-line path ---
@@ -368,6 +369,108 @@ export function buildTrackPath(track) {
   }
 
   return points;
+}
+
+// --- Curb data for curve insides ---
+
+/**
+ * Build curb arc data for rendering red/white curbs on curve insides.
+ * Returns array of { cx, cy, innerR, outerR, startAngle, sweep } for each curve tile.
+ */
+export function buildCurbArcs(track) {
+  const T = TILE;
+  const curbs = [];
+
+  for (const tile of track.tiles) {
+    const { gx, gy, dir, type, sign, size } = tile;
+    if (type === 'straight' || type === 'grid' || type === 'start' || type === 'finish' || type === 'runoff') continue;
+
+    const fwd = DIR_VEC[dir];
+    const lat = sign === 1 ? perpLeft(dir) : perpRight(dir);
+    const R = (size - 0.5) * T;
+
+    // Entry point
+    const entryX = (gx + 0.5) * T - fwd.x * T * 0.5;
+    const entryY = (gy + 0.5) * T - fwd.y * T * 0.5;
+
+    // Arc center
+    const cx = entryX + lat.x * R;
+    const cy = entryY + lat.y * R;
+
+    // Inner wall radius = R - TILE/2, curb sits just inside the inner wall
+    const innerR = R - T / 2;
+    const curbWidth = T * 0.12;
+    const outerR = innerR + curbWidth;
+
+    const startAngle = Math.atan2(entryY - cy, entryX - cx);
+    const sweep = sign === 1 ? -Math.PI / 2 : Math.PI / 2;
+
+    curbs.push({ cx, cy, innerR, outerR, startAngle, sweep });
+  }
+
+  return curbs;
+}
+
+// --- Brake markers ---
+
+/**
+ * Find straights before curves and place brake marker tiles on the grid
+ * adjacent to them, on the opposite side of the upcoming turn.
+ * Left curve → marker tile to the left of the straight.
+ * Right curve → marker tile to the right of the straight.
+ * Returns array of { gx, gy, dir, side } — grid cells that should render as brake zones.
+ */
+export function buildBrakeMarkers(track) {
+  const markers = [];
+  const tiles = track.tiles;
+
+  // Build set of all occupied cells
+  const occupied = new Set();
+  for (const tile of tiles) {
+    for (const c of tile.cells) {
+      occupied.add(`${c.x},${c.y}`);
+    }
+  }
+
+  for (let i = 0; i < tiles.length; i++) {
+    const tile = tiles[i];
+    // Only look at curve tiles
+    if (tile.type === 'straight' || tile.type === 'grid' || tile.type === 'start' || tile.type === 'finish' || tile.type === 'runoff') continue;
+
+    // Count consecutive straights before this curve
+    const straightsBefore = [];
+    for (let j = i - 1; j >= 0; j--) {
+      if (tiles[j].type === 'straight') {
+        straightsBefore.unshift(j);
+      } else {
+        break;
+      }
+    }
+
+    if (straightsBefore.length >= 2) {
+      const markerTile = tiles[straightsBefore[0]];
+      // Curve sign: +1 = left turn, -1 = right turn
+      // Place marker on the OPPOSITE side: left turn → right side, right turn → left side
+      // But user said left curve → left side markers, so: same side as curve direction
+      const sideDir = tile.sign > 0 ? turnLeft(markerTile.dir) : turnRight(markerTile.dir);
+      const offset = DIR_VEC[sideDir];
+      const mgx = markerTile.gx + offset.x;
+      const mgy = markerTile.gy + offset.y;
+
+      // Only place if that cell is empty (grass)
+      if (!occupied.has(`${mgx},${mgy}`)) {
+        occupied.add(`${mgx},${mgy}`);
+        markers.push({
+          gx: mgx,
+          gy: mgy,
+          dir: markerTile.dir,
+          side: tile.sign > 0 ? 'left' : 'right',
+        });
+      }
+    }
+  }
+
+  return markers;
 }
 
 // --- Wall paths ---

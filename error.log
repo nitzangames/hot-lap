@@ -34,3 +34,12 @@ Error: Failed to generate loop track for seed 1775757802181
     at generateTrack (http://localhost:8082/js/track.js:309:9)
     at initTrack (http://localhost:8082/js/main.js:90:11)
     at http://localhost:8082/js/main.js:211:1
+[2026-04-09T18:07:15.571Z] Uncaught Error: Failed to generate loop track for seed 1775758035556
+  at http://localhost:8082/js/track.js:309:9
+Error: Failed to generate loop track for seed 1775758035556
+    at generateTrack (http://localhost:8082/js/track.js:309:9)
+    at initTrack (http://localhost:8082/js/main.js:91:11)
+    at http://localhost:8082/js/main.js:214:1
+[2026-04-09T18:41:14.257Z] Uncaught SyntaxError: The requested module './car-styles.js' does not provide an export named 'GHOST_ALPHA'
+  at http://localhost:8082/js/main.js:15:68
+SyntaxError: The requested module './car-styles.js' does not provide an export named 'GHOST_ALPHA'
