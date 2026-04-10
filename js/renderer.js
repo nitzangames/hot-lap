@@ -105,20 +105,53 @@ export function drawTrack(ctx, track, walls, centerLine, curbs, brakeMarkers) {
     ctx.restore();
   }
 
-  // 3. Start tile — pole position marker
+  // 3. Grid tile — F1-style grid boxes (4 positions, staggered)
   for (const tile of track.tiles) {
     if (tile.type !== 'grid') continue;
-    const { gx, gy } = tile;
+    const { gx, gy, dir } = tile;
+    const fwd = DIR_VEC[dir];
+
     ctx.save();
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 4;
-    ctx.strokeRect(gx * T + 20, gy * T + 20, T - 40, T - 40);
-    // Draw "P1" text
-    ctx.fillStyle = '#fff';
-    ctx.font = `bold ${T * 0.18}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('P1', (gx + 0.5) * T, (gy + 0.5) * T);
+    ctx.translate((gx + 0.5) * T, (gy + 0.5) * T);
+    ctx.rotate(Math.atan2(fwd.y, fwd.x) - Math.PI / 2);
+
+    // Grid box dimensions
+    const bw = CAR_W * 1.3;
+    const bh = CAR_H * 0.9;
+    const cornerLen = bw * 0.3;
+
+    // 4 grid positions: staggered left-right
+    // P1: top-left, P2: top-right (slightly behind)
+    // P3: below P1, P4: below P2
+    const leftX = -T * 0.2;
+    const rightX = T * 0.2;
+    const row1Y = -T * 0.25;
+    const row2Y = T * 0.15;
+    const stagger = bh * 0.3; // P2/P4 are slightly behind P1/P3
+
+    const positions = [
+      { x: leftX, y: row1Y },             // P1
+      { x: rightX, y: row1Y + stagger },   // P2
+      { x: leftX, y: row2Y },             // P3
+      { x: rightX, y: row2Y + stagger },   // P4
+    ];
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    for (const pos of positions) {
+      // U-shape in front of car: bar at bottom, arms go up toward start line
+      const barY = pos.y + bh * 0.7;
+      ctx.beginPath();
+      ctx.moveTo(pos.x - bw/2, barY - cornerLen); // left arm up
+      ctx.lineTo(pos.x - bw/2, barY);              // left arm down to bar
+      ctx.lineTo(pos.x + bw/2, barY);              // bar across
+      ctx.lineTo(pos.x + bw/2, barY - cornerLen);  // right arm up
+      ctx.stroke();
+    }
+
     ctx.restore();
   }
 
@@ -161,23 +194,51 @@ export function drawTrack(ctx, track, walls, centerLine, curbs, brakeMarkers) {
     ctx.restore();
   }
 
-  // 6. Brake marker tiles (red/white striped zones next to track)
+  // DEBUG: tile grid outlines
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,0,0.3)';
+  ctx.lineWidth = 1;
+  ctx.font = '14px monospace';
+  ctx.fillStyle = 'rgba(255,255,0,0.5)';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const tile of track.tiles) {
+    for (const c of tile.cells) {
+      ctx.strokeRect(c.x * T, c.y * T, T, T);
+    }
+    // Label on entry cell
+    ctx.fillText(tile.type, (tile.gx + 0.5) * T, (tile.gy + 0.5) * T);
+  }
+  ctx.restore();
+
+  // 6. Brake marker tiles (3 white lines perpendicular to track)
   if (brakeMarkers) {
     for (const m of brakeMarkers) {
       const tx = m.gx * T;
       const ty = m.gy * T;
       const fwd = DIR_VEC[m.dir];
 
-      ctx.save();
-      ctx.translate(tx + T / 2, ty + T / 2);
-      // Rotate so stripes are perpendicular to track direction
-      ctx.rotate(Math.atan2(fwd.y, fwd.x));
+      // Perpendicular to track: the track is adjacent, so shift lines toward it
+      const perp = m.side === 'left' ? { x: fwd.y, y: -fwd.x } : { x: -fwd.y, y: fwd.x };
+      const shiftX = perp.x * T * 0.3;
+      const shiftY = perp.y * T * 0.3;
 
-      const stripeCount = 8;
-      const stripeH = T / stripeCount;
-      for (let s = 0; s < stripeCount; s++) {
-        ctx.fillStyle = s % 2 === 0 ? '#cc2222' : '#eeeeee';
-        ctx.fillRect(-T / 2, -T / 2 + s * stripeH, T, stripeH);
+      ctx.save();
+      ctx.translate(tx + T / 2 + shiftX, ty + T / 2 + shiftY);
+      ctx.rotate(Math.atan2(fwd.y, fwd.x) - Math.PI / 2);
+
+      // 3 short white lines perpendicular to track
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'butt';
+      const lineSpacing = T * 0.2;
+      const lineW = T * 0.25;
+      for (let s = -1; s <= 1; s++) {
+        const y = s * lineSpacing;
+        ctx.beginPath();
+        ctx.moveTo(-lineW / 2, y);
+        ctx.lineTo(lineW / 2, y);
+        ctx.stroke();
       }
 
       ctx.restore();
@@ -333,14 +394,7 @@ export function drawHUD(ctx, currentTime, bestTime, speed, seed) {
     ctx.fillText('BEST  ' + formatTime(bestTime), CX, bestY);
   }
 
-  // Seed — top left
-  if (seed !== undefined) {
-    ctx.fillStyle = 'rgba(255,255,255,0.3)';
-    ctx.font = '20px monospace';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    ctx.fillText('seed: ' + seed, 16, 16);
-  }
+  // (seed display moved to main.js — always visible)
 
   ctx.restore();
 }
@@ -560,44 +614,69 @@ export function drawCrashScreen(ctx) {
  * @param {number} screenY - game-space Y of drag origin
  * @param {number} steering - -1 to +1
  */
-export function drawSteeringWheel(ctx, screenX, screenY, steering) {
-  const r = 80;
-  const rotation = steering * Math.PI * 0.75; // max 135° rotation
+export function drawSteeringWheel(ctx, screenX, screenY, steering, speed) {
+  const rotation = steering * Math.PI * 0.75;
+  const w = 160, h = 120;
 
   ctx.save();
-  ctx.globalAlpha = 0.4;
+  ctx.globalAlpha = 0.85;
   ctx.translate(screenX, screenY);
   ctx.rotate(rotation);
 
-  // Outer ring
-  ctx.strokeStyle = '#fff';
-  ctx.lineWidth = 8;
+  // Main body — rectangular, rounded top
+  ctx.fillStyle = '#1a1a1a';
   ctx.beginPath();
-  ctx.arc(0, 0, r, 0, Math.PI * 2);
-  ctx.stroke();
+  ctx.moveTo(-w/2, h*0.15);
+  ctx.lineTo(-w/2, -h*0.2);
+  ctx.quadraticCurveTo(-w/2, -h*0.5, -w*0.3, -h*0.5);
+  ctx.lineTo(w*0.3, -h*0.5);
+  ctx.quadraticCurveTo(w/2, -h*0.5, w/2, -h*0.2);
+  ctx.lineTo(w/2, h*0.15);
+  ctx.quadraticCurveTo(w*0.4, h*0.25, w*0.3, h*0.35);
+  ctx.lineTo(-w*0.3, h*0.35);
+  ctx.quadraticCurveTo(-w*0.4, h*0.25, -w/2, h*0.15);
+  ctx.closePath();
+  ctx.fill();
 
-  // Spokes (3 spokes at 120° apart, starting from bottom)
-  ctx.lineWidth = 6;
-  ctx.lineCap = 'round';
-  const spokeAngles = [-Math.PI / 2, -Math.PI / 2 + Math.PI * 2 / 3, -Math.PI / 2 - Math.PI * 2 / 3];
-  for (const a of spokeAngles) {
+  // Grip cutouts
+  ctx.fillStyle = '#333';
+  ctx.beginPath();
+  ctx.ellipse(-w*0.42, 0, w*0.07, h*0.26, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(w*0.42, 0, w*0.07, h*0.26, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // LED strip at top
+  const ledY = -h * 0.42;
+  for (let i = -4; i <= 4; i++) {
+    const ledColor = Math.abs(i) <= 1 ? '#0f0' : Math.abs(i) <= 3 ? '#ff0' : '#f00';
+    ctx.fillStyle = ledColor;
     ctx.beginPath();
-    ctx.moveTo(Math.cos(a) * 20, Math.sin(a) * 20);
-    ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
-    ctx.stroke();
+    ctx.arc(i * 10, ledY, 3.5, 0, Math.PI * 2);
+    ctx.fill();
   }
 
-  // Center hub
-  ctx.fillStyle = '#fff';
+  // Center screen
+  ctx.fillStyle = '#111';
   ctx.beginPath();
-  ctx.arc(0, 0, 14, 0, Math.PI * 2);
+  ctx.roundRect(-34, -18, 68, 32, 4);
   ctx.fill();
 
-  // Top marker (so you can see rotation)
+  // Speed on screen
+  ctx.fillStyle = '#0af';
+  ctx.font = 'bold 13px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const kph = Math.round(speed || 0);
+  ctx.fillText(kph + '', 0, -5);
+  ctx.fillStyle = '#888';
+  ctx.font = '8px monospace';
+  ctx.fillText('km/h', 0, 7);
+
+  // Top marker
   ctx.fillStyle = '#e63030';
-  ctx.beginPath();
-  ctx.arc(0, -r, 8, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.fillRect(-3, -h*0.5 - 3, 6, 6);
 
   ctx.restore();
 }

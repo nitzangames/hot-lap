@@ -139,8 +139,8 @@ export function generateTrack(seed) {
   for (let attempt = 0; attempt < 200; attempt++) {
     const rng = mulberry32(seed + attempt * 997);
     const targetLen = MIN_TRACK_TILES + Math.floor(rng() * (MAX_TRACK_TILES - MIN_TRACK_TILES + 1));
-    const returnBudget = 25; // max tiles for return-home phase
-    const freeGenTarget = targetLen - returnBudget;
+    const returnBudget = 15; // max tiles for return-home phase
+    const freeGenTarget = Math.max(targetLen - returnBudget, targetLen * 0.6);
     const occupied = new Set();
     const tiles = [];
 
@@ -238,16 +238,16 @@ export function generateTrack(seed) {
 
     let loopClosed = false;
     for (let ri = 0; ri < returnBudget; ri++) {
-      // Check if we can close the loop right now
-      // We need: exitGx = targetGx, exitGy = targetGy, exitDir = targetDir
-      // Try each tile builder and see if any closes the loop
+      // Only allow closing the loop if we have enough tiles
       let closingTile = null;
-      for (const builder of allTileBuilders) {
-        const t = builder(cx, cy, cdir);
-        if (t.exitGx === targetGx && t.exitGy === targetGy && t.exitDir === targetDir) {
-          if (canPlaceCells(t.cells)) {
-            closingTile = t;
-            break;
+      if (tiles.length >= MIN_TRACK_TILES - 2) {
+        for (const builder of allTileBuilders) {
+          const t = builder(cx, cy, cdir);
+          if (t.exitGx === targetGx && t.exitGy === targetGy && t.exitDir === targetDir) {
+            if (canPlaceCells(t.cells)) {
+              closingTile = t;
+              break;
+            }
           }
         }
       }
@@ -448,11 +448,10 @@ export function buildBrakeMarkers(track) {
     }
 
     if (straightsBefore.length >= 2) {
-      const markerTile = tiles[straightsBefore[0]];
+      const markerTile = tiles[straightsBefore[straightsBefore.length - 2]];
       // Curve sign: +1 = left turn, -1 = right turn
-      // Place marker on the OPPOSITE side: left turn → right side, right turn → left side
-      // But user said left curve → left side markers, so: same side as curve direction
-      const sideDir = tile.sign > 0 ? turnLeft(markerTile.dir) : turnRight(markerTile.dir);
+      // Place marker on the OPPOSITE side: right turn → left, left turn → right
+      const sideDir = tile.sign > 0 ? turnRight(markerTile.dir) : turnLeft(markerTile.dir);
       const offset = DIR_VEC[sideDir];
       const mgx = markerTile.gx + offset.x;
       const mgy = markerTile.gy + offset.y;

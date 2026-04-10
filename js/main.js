@@ -77,7 +77,7 @@ function alphaToSeed(str) {
 
 let world, track, centerLine, walls, wallBodies, curbs, brakeMarkers;
 let car, ghost, gameState, skidmarks;
-let currentSeed = Date.now();
+let currentSeed = alphaToSeed('LFEGJAZ');
 let currentSeedAlpha = seedToAlpha(currentSeed);
 let trackStartAngle = 0;
 
@@ -96,7 +96,8 @@ function initTrack(seed) {
   curbs = buildCurbArcs(track);
   brakeMarkers = buildBrakeMarkers(track);
 
-  // Ghost system for this seed
+  // Ghost system for this seed (TEMP: clear old ghost data)
+  try { localStorage.removeItem(`racing-2d:ghost:${seed}`); } catch(_) {}
   ghost = new Ghost(seed);
 
   // Game state
@@ -129,8 +130,13 @@ function spawnCar() {
   car = new Car(world);
   const gridTile = track.tiles[0]; // grid (P1) tile
   const startAngle = dirAngles[gridTile.dir];
-  const startX = (gridTile.gx + 0.5) * TILE;
-  const startY = (gridTile.gy + 0.5) * TILE;
+  // P1 position: top-left of the grid tile (offset from center)
+  const fwd = { x: Math.sin(startAngle), y: -Math.cos(startAngle) };
+  const perp = { x: fwd.y, y: -fwd.x }; // left perpendicular
+  const tileCx = (gridTile.gx + 0.5) * TILE;
+  const tileCy = (gridTile.gy + 0.5) * TILE;
+  const startX = tileCx + perp.x * TILE * 0.2 + fwd.x * TILE * 0.25;
+  const startY = tileCy + perp.y * TILE * 0.2 + fwd.y * TILE * 0.25;
   car.spawn(startX, startY, startAngle);
   trackStartAngle = startAngle;
   hasLeftStart = false;
@@ -425,6 +431,15 @@ function render() {
   // Minimap and speed — always show
   drawMinimap(ctx, track, centerLine, car.physX, car.physY, car.speed * 0.35, trackStartAngle);
 
+  // Seed — always visible (top left)
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.font = '20px monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('seed: ' + currentSeedAlpha + '  tiles: ' + track.tiles.length, 16, 16);
+  ctx.restore();
+
   // HUD timer — show during racing and finishing
   if (state === 'racing' || state === 'finishing') {
     const bestTimeSec = ghost.bestTime !== null ? ghost.bestTime / 1000 : null;
@@ -432,7 +447,7 @@ function render() {
 
     // Steering wheel (only while dragging)
     if (input.dragging) {
-      drawSteeringWheel(ctx, input.dragScreenX, input.dragScreenY, input.steering);
+      drawSteeringWheel(ctx, input.dragScreenX, input.dragScreenY, input.steering, car.speed * 0.35);
     }
   }
 

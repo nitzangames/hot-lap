@@ -24,8 +24,8 @@ export const CRASH_ANGLE_THRESHOLD = 0.7; // radians (~40°) — above this angl
 export const WALL_SPEED_LOSS = 0.4;       // speed multiplier on glancing wall hit
 
 // Track generation
-export const MIN_TRACK_TILES = 30;
-export const MAX_TRACK_TILES = 40;
+export const MIN_TRACK_TILES = 28;
+export const MAX_TRACK_TILES = 34;
 export const WALL_THICKNESS = 8;     // visual wall thickness in px
 export const WALL_SEGMENTS_PER_CURVE = 8; // edge segments to approximate curve arcs
 
