@@ -1,0 +1,14 @@
+.git/*
+.superpowers/*
+docs/*
+tests/*
+error.log
+dev-server.js
+check-errors.js
+check-junction.js
+screenshot.js
+screenshot-*.png
+ss-*.png
+thumb-*.png
+CLAUDE.md
+.zipignore
