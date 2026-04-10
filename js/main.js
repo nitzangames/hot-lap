@@ -15,36 +15,15 @@ import { SkidMarks } from './skidmarks.js';
 import { ScreenShake, drawGrass, drawTrackNoise, drawSpeedLines, triggerCrashFlash, drawCrashFlash } from './effects.js';
 import { drawStyledCar, loadCarConfig, saveCarConfig, hueToColors } from './car-styles.js';
 
-// ── DPR-aware canvas setup ────────────────────────────────────────────────────
+// ── Canvas setup ──────────────────────────────────────────────────────────────
+// Logical pixels only — no DPR multiplication. CSS handles responsive sizing
+// via object-fit: contain. This keeps the GPU backing store small (2 MP) and
+// avoids per-touch compositor stalls on iOS Safari.
 
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
-const dpr = window.devicePixelRatio || 1;
-
-function resizeCanvas() {
-  canvas.width  = GAME_W * dpr;
-  canvas.height = GAME_H * dpr;
-
-  const viewAspect = window.innerWidth / window.innerHeight;
-  const gameAspect = GAME_W / GAME_H;
-
-  let cssW, cssH;
-  if (viewAspect < gameAspect) {
-    cssW = window.innerWidth;
-    cssH = window.innerWidth / gameAspect;
-  } else {
-    cssH = window.innerHeight;
-    cssW = window.innerHeight * gameAspect;
-  }
-
-  canvas.style.width  = `${cssW}px`;
-  canvas.style.height = `${cssH}px`;
-
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-}
-
-resizeCanvas();
-window.addEventListener('resize', resizeCanvas);
+canvas.width = GAME_W;
+canvas.height = GAME_H;
 
 // ── Direction angles for car spawn ────────────────────────────────────────────
 
@@ -295,13 +274,13 @@ canvas.addEventListener('pointerdown', (e) => {
   if (gameState.state === 'carselect') {
     handleCarSelectClick(e.clientX, e.clientY);
   }
-});
+}, { passive: true });
 
-window.addEventListener('pointermove', (e) => {
+canvas.addEventListener('pointermove', (e) => {
   if (gameState.state === 'carselect') {
     handleCarSelectDrag(e.clientX, e.clientY);
   }
-});
+}, { passive: true });
 
 canvas.addEventListener('pointerup', (e) => {
   if (gameState.state === 'carselect') {
@@ -313,7 +292,7 @@ canvas.addEventListener('pointerup', (e) => {
   if (Math.abs(dx) < TAP_THRESHOLD && Math.abs(dy) < TAP_THRESHOLD) {
     handleClick(e.clientX, e.clientY);
   }
-});
+}, { passive: true });
 
 // ── Initialize first track ────────────────────────────────────────────────────
 
@@ -333,6 +312,9 @@ function gameLoop(now) {
   // Cap dt to avoid spiral of death
   if (dt > 1 / 30) dt = 1 / 30;
 
+  // Process raw pointer input once per frame
+  input.update();
+
   // Fixed timestep accumulator
   accumulator += dt;
   while (accumulator >= FIXED_DT) {
@@ -340,7 +322,6 @@ function gameLoop(now) {
     accumulator -= FIXED_DT;
   }
 
-  // ── Render ──────────────────────────────────────────────────────────────────
   render();
 }
 
@@ -373,17 +354,18 @@ function fixedUpdate() {
     // Tick race time
     gameState.tickRace();
 
-    // Check crash
-    if (car.crashed) {
-      gameState.crash();
-      return;
-    }
-
-    // Check finish line
+    // Check finish line FIRST — crossing the line counts even if you crashed on it
     if (checkFinishLine()) {
       finishPreviousBest = ghost.bestTime;
       gameState.state = 'finishing';
       finishDelayTimer = 0;
+      return;
+    }
+
+    // Check crash
+    if (car.crashed) {
+      gameState.crash();
+      return;
     }
   } else if (state === 'finishing') {
     // Car keeps driving during delay

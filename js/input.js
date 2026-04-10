@@ -1,57 +1,58 @@
-// ── Input: drag-to-steer ─────────────────────────────────────────────────────
+// ── Input: drag-to-steer via pointer events ──────────────────────────────────
+// Uses ONE unified pointer-event API (no separate mouse/touch listeners).
+// Handlers do zero work — just store raw clientX. The game loop converts
+// to steering once per frame via update(). setPointerCapture lets us listen
+// only on the canvas; events keep flowing even if the finger leaves it.
 
 export class Input {
   constructor(canvas) {
+    this._canvas = canvas;
     this._steering = 0;
     this._dragging = false;
     this._startX = 0;
     this._maxDragPx = 150;
-    this._canvas = canvas;
-    // Screen-space position of the drag origin (for steering wheel display)
+
+    // Raw pointer position — written by handler, read in update()
+    this._rawX = 0;
+    this._rawDirty = false;
+
+    // Public state for renderer
     this.dragScreenX = 0;
     this.dragScreenY = 0;
     this.dragging = false;
 
-    // Mouse events
-    canvas.addEventListener('mousedown', (e) => {
+    canvas.addEventListener('pointerdown', (e) => {
+      try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
       this._dragging = true;
       this._startX = e.clientX;
+      this._rawX = e.clientX;
+      this._rawDirty = true;
       this._setDragScreen(e.clientX, e.clientY);
       this.dragging = true;
-    });
+    }, { passive: true });
 
-    window.addEventListener('mousemove', (e) => {
-      if (!this._dragging) return;
-      const dx = e.clientX - this._startX;
-      this._steering = Math.max(-1, Math.min(1, dx / this._maxDragPx));
-    });
+    canvas.addEventListener('pointermove', (e) => {
+      // Zero work — just record raw value. update() processes it once per frame.
+      this._rawX = e.clientX;
+      this._rawDirty = true;
+    }, { passive: true });
 
-    window.addEventListener('mouseup', () => {
+    const end = () => {
       this._dragging = false;
       this._steering = 0;
       this.dragging = false;
-    });
+      this._rawDirty = false;
+    };
+    canvas.addEventListener('pointerup', end, { passive: true });
+    canvas.addEventListener('pointercancel', end, { passive: true });
+  }
 
-    // Touch events
-    canvas.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      this._dragging = true;
-      this._startX = e.touches[0].clientX;
-      this._setDragScreen(e.touches[0].clientX, e.touches[0].clientY);
-      this.dragging = true;
-    }, { passive: false });
-
-    window.addEventListener('touchmove', (e) => {
-      if (!this._dragging) return;
-      const dx = e.touches[0].clientX - this._startX;
-      this._steering = Math.max(-1, Math.min(1, dx / this._maxDragPx));
-    });
-
-    window.addEventListener('touchend', () => {
-      this._dragging = false;
-      this._steering = 0;
-      this.dragging = false;
-    });
+  /** Called once per frame from the game loop. Converts raw coords to steering. */
+  update() {
+    if (!this._dragging || !this._rawDirty) return;
+    const dx = this._rawX - this._startX;
+    this._steering = Math.max(-1, Math.min(1, dx / this._maxDragPx));
+    this._rawDirty = false;
   }
 
   _setDragScreen(clientX, clientY) {

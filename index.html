@@ -6,8 +6,27 @@
 <title>Racing 2D</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { width: 100%; height: 100%; overflow: hidden; background: #2d5a1e; touch-action: none; }
-canvas { display: block; position: absolute; top: 0; left: 50%; transform: translateX(-50%); }
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: #2d5a1e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-user-select: none;
+  user-select: none;
+}
+canvas {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
 </style>
 </head>
 <body>
