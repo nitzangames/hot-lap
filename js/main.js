@@ -12,6 +12,7 @@ import { Ghost } from './ghost.js';
 import { GameState } from './game.js';
 import { World, Vec2 } from '../physics2d/index.js';
 import { SkidMarks } from './skidmarks.js';
+import { ScreenShake, drawGrass, drawTrackNoise, drawSpeedLines, triggerCrashFlash, drawCrashFlash } from './effects.js';
 import { drawStyledCar, loadCarConfig, saveCarConfig, hueToColors } from './car-styles.js';
 
 // ── DPR-aware canvas setup ────────────────────────────────────────────────────
@@ -76,8 +77,9 @@ function alphaToSeed(str) {
 // ── Track initialization ──────────────────────────────────────────────────────
 
 let world, track, centerLine, walls, wallBodies, curbs, brakeMarkers;
+const screenShake = new ScreenShake();
 let car, ghost, gameState, skidmarks;
-let currentSeed = alphaToSeed('LFEGJAZ');
+let currentSeed = Date.now();
 let currentSeedAlpha = seedToAlpha(currentSeed);
 let trackStartAngle = 0;
 
@@ -114,7 +116,14 @@ function initTrack(seed) {
     const bIsCar  = b.userData && b.userData.type === 'car';
 
     if ((aIsCar && bIsWall) || (bIsCar && aIsWall)) {
+      const wasCrashed = car.crashed;
       car.onWallCollision(contact);
+      if (car.crashed && !wasCrashed) {
+        screenShake.trigger(40);
+        triggerCrashFlash();
+      } else if (!car.crashed) {
+        screenShake.trigger(15);
+      }
     }
   };
 }
@@ -210,6 +219,9 @@ function handleClick(clientX, clientY) {
     if (hitTest(x, y, finishHitAreas.retryBox)) {
       ghost.resetRecording();
       spawnCar();
+      gameState.startCountdown();
+    } else if (hitTest(x, y, finishHitAreas.nextBox)) {
+      initTrack(Date.now());
       gameState.startCountdown();
     } else if (hitTest(x, y, finishHitAreas.menuBox)) {
       ghost.resetRecording();
@@ -402,15 +414,25 @@ function render() {
   // Camera follows car (interpolated render position)
   camera.follow(car.x, car.y, car.angle);
 
-  // Clear with grass background
+  // Update screen shake
+  screenShake.update(1 / 60);
+
+  // Clear canvas
   ctx.fillStyle = '#4a7a2e';
   ctx.fillRect(0, 0, GAME_W, GAME_H);
 
-  // World-space drawing
+  // Apply camera + screen shake
   camera.apply(ctx);
+  ctx.translate(screenShake.offsetX, screenShake.offsetY);
+
+  // Textured grass background (world-space)
+  drawGrass(ctx, camera.x, camera.y, camera.angle);
 
   // Track
   drawTrack(ctx, track, walls, centerLine, curbs, brakeMarkers);
+
+  // Track surface noise
+  drawTrackNoise(ctx, centerLine);
 
   // Skid marks (on track surface, before cars)
   skidmarks.draw(ctx);
@@ -428,8 +450,16 @@ function render() {
 
   camera.restore(ctx);
 
+  // Speed lines (screen-space, only during racing)
+  if (state === 'racing' || state === 'finishing') {
+    drawSpeedLines(ctx, car.speed, 1350);
+  }
+
+  // Crash flash (screen-space)
+  drawCrashFlash(ctx, 1 / 60);
+
   // Minimap and speed — always show
-  drawMinimap(ctx, track, centerLine, car.physX, car.physY, car.speed * 0.35, trackStartAngle);
+  drawMinimap(ctx, track, centerLine, car.physX, car.physY, car.speed * 0.26, trackStartAngle);
 
   // Seed — always visible (top left)
   ctx.save();
@@ -443,18 +473,18 @@ function render() {
   // HUD timer — show during racing and finishing
   if (state === 'racing' || state === 'finishing') {
     const bestTimeSec = ghost.bestTime !== null ? ghost.bestTime / 1000 : null;
-    drawHUD(ctx, gameState.raceTime / 1000, bestTimeSec, car.speed * 0.35, currentSeedAlpha);
+    drawHUD(ctx, gameState.raceTime / 1000, bestTimeSec, car.speed * 0.26, currentSeedAlpha);
 
     // Steering wheel (only while dragging)
     if (input.dragging) {
-      drawSteeringWheel(ctx, input.dragScreenX, input.dragScreenY, input.steering, car.speed * 0.35);
+      drawSteeringWheel(ctx, input.dragScreenX, input.dragScreenY, input.steering, car.speed * 0.26);
     }
   }
 
   // Overlays
   if (state === 'title') {
     const { bodyColor } = hueToColors(carConfig.hue);
-    titleHitAreas = drawTitleScreen(ctx, currentSeedAlpha, bodyColor);
+    titleHitAreas = drawTitleScreen(ctx, currentSeedAlpha, bodyColor, 1/60);
   } else if (state === 'carselect') {
     carSelectHitAreas = drawCarSelect(ctx, carConfig.styleIndex, carConfig.hue);
   } else if (state === 'countdown') {

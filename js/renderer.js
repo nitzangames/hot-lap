@@ -155,61 +155,54 @@ export function drawTrack(ctx, track, walls, centerLine, curbs, brakeMarkers) {
     ctx.restore();
   }
 
-  // 4. Center dashes
-  if (centerLine && centerLine.length > 1) {
-    ctx.save();
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 6;
-    ctx.setLineDash([40, 40]);
-    ctx.lineDashOffset = 0;
-    ctx.globalAlpha = 0.6;
-    ctx.beginPath();
-    ctx.moveTo(centerLine[0].x, centerLine[0].y);
-    for (let i = 1; i < centerLine.length; i++) {
-      ctx.lineTo(centerLine[i].x, centerLine[i].y);
-    }
-    ctx.closePath();
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  // 5. Wall paths
+  // 5. Wall paths — concrete barrier look
   if (walls) {
-    ctx.save();
-    ctx.strokeStyle = '#888';
-    ctx.lineWidth = WALL_THICKNESS;
-    ctx.lineJoin = 'round';
-    ctx.lineCap = 'round';
-    ctx.setLineDash([]);
-
     for (const side of [walls.left, walls.right]) {
       if (!side || side.length < 2) continue;
+
+      // Dark shadow (offset outward slightly)
+      ctx.save();
+      ctx.strokeStyle = '#444';
+      ctx.lineWidth = WALL_THICKNESS + 4;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
       ctx.beginPath();
       ctx.moveTo(side[0].x, side[0].y);
       for (let i = 1; i < side.length; i++) {
         ctx.lineTo(side[i].x, side[i].y);
       }
       ctx.stroke();
-    }
-    ctx.restore();
-  }
+      ctx.restore();
 
-  // DEBUG: tile grid outlines
-  ctx.save();
-  ctx.strokeStyle = 'rgba(255,255,0,0.3)';
-  ctx.lineWidth = 1;
-  ctx.font = '14px monospace';
-  ctx.fillStyle = 'rgba(255,255,0,0.5)';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  for (const tile of track.tiles) {
-    for (const c of tile.cells) {
-      ctx.strokeRect(c.x * T, c.y * T, T, T);
+      // Main wall
+      ctx.save();
+      ctx.strokeStyle = '#999';
+      ctx.lineWidth = WALL_THICKNESS;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(side[0].x, side[0].y);
+      for (let i = 1; i < side.length; i++) {
+        ctx.lineTo(side[i].x, side[i].y);
+      }
+      ctx.stroke();
+      ctx.restore();
+
+      // Highlight edge (inner)
+      ctx.save();
+      ctx.strokeStyle = '#bbb';
+      ctx.lineWidth = 2;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(side[0].x, side[0].y);
+      for (let i = 1; i < side.length; i++) {
+        ctx.lineTo(side[i].x, side[i].y);
+      }
+      ctx.stroke();
+      ctx.restore();
     }
-    // Label on entry cell
-    ctx.fillText(tile.type, (tile.gx + 0.5) * T, (tile.gy + 0.5) * T);
   }
-  ctx.restore();
 
   // 6. Brake marker tiles (3 white lines perpendicular to track)
   if (brakeMarkers) {
@@ -401,11 +394,30 @@ export function drawHUD(ctx, currentTime, bestTime, speed, seed) {
 
 // ── Overlay screens ───────────────────────────────────────────────────────────
 
-export function drawTitleScreen(ctx, seed, bodyColor) {
+let titleAnimTime = 0;
+export function drawTitleScreen(ctx, seed, bodyColor, dt) {
+  titleAnimTime += (dt || 0.016);
   const cx = GAME_W / 2;
   ctx.save();
   ctx.fillStyle = 'rgba(0,0,0,0.72)';
   ctx.fillRect(0, 0, GAME_W, GAME_H);
+
+  // Animated speed lines in background
+  ctx.save();
+  ctx.globalAlpha = 0.08;
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 20; i++) {
+    const seed2 = i * 137.5;
+    const x = (Math.sin(seed2) * 0.5 + 0.5) * GAME_W;
+    const baseY = ((seed2 * 0.73 + titleAnimTime * 400) % (GAME_H + 200)) - 100;
+    const lineLen = 60 + Math.sin(seed2 * 2.1) * 40;
+    ctx.beginPath();
+    ctx.moveTo(x, baseY);
+    ctx.lineTo(x, baseY + lineLen);
+    ctx.stroke();
+  }
+  ctx.restore();
 
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 110px sans-serif';
@@ -550,20 +562,31 @@ export function drawFinishScreen(ctx, raceTime, delta, isNewRecord) {
   ctx.font = 'bold 44px sans-serif';
   ctx.fillText('RETRY', cx, retryY + 42);
 
-  // MAIN MENU button
-  const menuY = GAME_H * 0.74;
-  ctx.fillStyle = 'rgba(255,255,255,0.08)';
-  ctx.beginPath(); ctx.roundRect(cx - 200, menuY, 400, 70, 16); ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-  ctx.lineWidth = 1; ctx.stroke();
-  ctx.fillStyle = '#aaa';
+  // NEXT TRACK button
+  const nextY = GAME_H * 0.74;
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.beginPath(); ctx.roundRect(cx - 200, nextY, 400, 70, 16); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+  ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#ccc';
   ctx.font = '36px sans-serif';
-  ctx.fillText('MAIN MENU', cx, menuY + 37);
+  ctx.fillText('NEXT TRACK', cx, nextY + 37);
+
+  // MAIN MENU button
+  const menuY = GAME_H * 0.82;
+  ctx.fillStyle = 'rgba(255,255,255,0.06)';
+  ctx.beginPath(); ctx.roundRect(cx - 200, menuY, 400, 60, 16); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.lineWidth = 1; ctx.stroke();
+  ctx.fillStyle = '#888';
+  ctx.font = '32px sans-serif';
+  ctx.fillText('MAIN MENU', cx, menuY + 33);
 
   ctx.restore();
   return {
     retryBox: { x: cx - 200, y: retryY, w: 400, h: 80 },
-    menuBox: { x: cx - 200, y: menuY, w: 400, h: 70 },
+    nextBox: { x: cx - 200, y: nextY, w: 400, h: 70 },
+    menuBox: { x: cx - 200, y: menuY, w: 400, h: 60 },
   };
 }
 
@@ -647,11 +670,18 @@ export function drawSteeringWheel(ctx, screenX, screenY, steering, speed) {
   ctx.ellipse(w*0.42, 0, w*0.07, h*0.26, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // LED strip at top
+  // LED strip at top — shows available speed (dims as you turn)
   const ledY = -h * 0.42;
+  const turnFactor = 1 - Math.abs(steering);  // 1 = straight, 0 = full turn
+  const litCount = Math.round(turnFactor * 9); // 0-9 LEDs lit
   for (let i = -4; i <= 4; i++) {
-    const ledColor = Math.abs(i) <= 1 ? '#0f0' : Math.abs(i) <= 3 ? '#ff0' : '#f00';
-    ctx.fillStyle = ledColor;
+    const idx = Math.abs(i);  // 0-4, center=0
+    const isLit = idx < Math.ceil(litCount / 2);
+    if (isLit) {
+      ctx.fillStyle = idx <= 1 ? '#f00' : idx <= 3 ? '#ff0' : '#0f0';
+    } else {
+      ctx.fillStyle = '#1a1a1a';
+    }
     ctx.beginPath();
     ctx.arc(i * 10, ledY, 3.5, 0, Math.PI * 2);
     ctx.fill();

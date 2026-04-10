@@ -1,0 +1,400 @@
+<h2>Hot Lap — Thumbnail Options (1024x1024)</h2>
+<p class="subtitle">Click to select</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image"><canvas id="tA" width="512" height="512" style="width:100%;height:auto;border-radius:6px;"></canvas></div>
+    <div class="card-body"><h3>A. Burning Rubber</h3><p>Car in a turn with heavy skid marks, heat glow, bold Hot Lap text</p></div>
+  </div>
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image"><canvas id="tB" width="512" height="512" style="width:100%;height:auto;border-radius:6px;"></canvas></div>
+    <div class="card-body"><h3>B. Lights Out</h3><p>F1 start lights, car below, dramatic dark mood</p></div>
+  </div>
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image"><canvas id="tC" width="512" height="512" style="width:100%;height:auto;border-radius:6px;"></canvas></div>
+    <div class="card-body"><h3>C. Stopwatch</h3><p>Timer prominent, car racing across, time trial emphasis</p></div>
+  </div>
+  <div class="card" data-choice="d" onclick="toggleSelect(this)">
+    <div class="card-image"><canvas id="tD" width="512" height="512" style="width:100%;height:auto;border-radius:6px;"></canvas></div>
+    <div class="card-body"><h3>D. Apex Corner</h3><p>Car hitting the apex of a curve, curbs, dynamic angle</p></div>
+  </div>
+</div>
+
+<script>
+const S = 512;
+
+function drawCar(ctx, x, y, angle, scale, color) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  ctx.scale(scale, scale);
+  const w = 64, h = 141;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath(); ctx.ellipse(2, 2, w*0.5, h*0.4, 0, 0, Math.PI*2); ctx.fill();
+
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(-w*0.5, h*0.06, w*0.16, h*0.25);
+  ctx.fillRect(w*0.34, h*0.06, w*0.16, h*0.25);
+  ctx.fillRect(-w*0.46, -h*0.3, w*0.14, h*0.17);
+  ctx.fillRect(w*0.32, -h*0.3, w*0.14, h*0.17);
+
+  ctx.fillStyle = '#333';
+  ctx.fillRect(-w*0.55, h*0.38, w*1.1, h*0.04);
+  ctx.fillRect(-w*0.55, h*0.22, w*0.06, h*0.18);
+  ctx.fillRect(w*0.50, h*0.22, w*0.06, h*0.18);
+
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(0, -h*0.46); ctx.lineTo(w*0.2, -h*0.18); ctx.lineTo(w*0.26, h*0.05);
+  ctx.lineTo(w*0.22, h*0.3); ctx.lineTo(-w*0.22, h*0.3); ctx.lineTo(-w*0.26, h*0.05);
+  ctx.lineTo(-w*0.2, -h*0.18); ctx.closePath(); ctx.fill();
+
+  ctx.fillStyle = '#111';
+  ctx.fillRect(-w*0.1, -h*0.12, w*0.2, h*0.16);
+
+  ctx.fillStyle = '#333';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.12, -h*0.38); ctx.lineTo(-w*0.468, -h*0.3);
+  ctx.lineTo(-w*0.468, -h*0.33); ctx.lineTo(-w*0.12, -h*0.41); ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(w*0.12, -h*0.38); ctx.lineTo(w*0.468, -h*0.3);
+  ctx.lineTo(w*0.468, -h*0.33); ctx.lineTo(w*0.12, -h*0.41); ctx.closePath(); ctx.fill();
+
+  ctx.restore();
+}
+
+// A. Burning Rubber
+(function() {
+  const c = document.getElementById('tA');
+  const ctx = c.getContext('2d');
+
+  // Dark gradient background
+  const bg = ctx.createRadialGradient(S*0.5, S*0.5, 0, S*0.5, S*0.5, S*0.7);
+  bg.addColorStop(0, '#3a3a3a');
+  bg.addColorStop(1, '#151515');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, S, S);
+
+  // Curved track
+  ctx.save();
+  ctx.strokeStyle = '#4a4a4a';
+  ctx.lineWidth = 120;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(S*1.1, S*1.2, S*0.85, -Math.PI*0.85, -Math.PI*0.35);
+  ctx.stroke();
+  // Wall highlights
+  ctx.strokeStyle = '#666';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(S*1.1, S*1.2, S*0.85 + 58, -Math.PI*0.85, -Math.PI*0.35);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(S*1.1, S*1.2, S*0.85 - 58, -Math.PI*0.85, -Math.PI*0.35);
+  ctx.stroke();
+
+  // Red/white curb on inside
+  const curbSegs = 12;
+  for (let i = 0; i < curbSegs; i++) {
+    const a0 = -Math.PI*0.82 + (i/curbSegs) * Math.PI*0.47;
+    const a1 = -Math.PI*0.82 + ((i+1)/curbSegs) * Math.PI*0.47;
+    ctx.fillStyle = i % 2 === 0 ? '#cc2222' : '#eee';
+    ctx.beginPath();
+    ctx.arc(S*1.1, S*1.2, S*0.85 - 58, a0, a1);
+    ctx.arc(S*1.1, S*1.2, S*0.85 - 72, a1, a0, true);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // Heavy skid marks
+  ctx.save();
+  ctx.globalAlpha = 0.4;
+  ctx.strokeStyle = '#111';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.arc(S*1.1, S*1.2, S*0.85 - 25, -Math.PI*0.72, -Math.PI*0.48);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(S*1.1, S*1.2, S*0.85 + 15, -Math.PI*0.72, -Math.PI*0.48);
+  ctx.stroke();
+  ctx.restore();
+
+  // Car mid-turn
+  drawCar(ctx, S*0.42, S*0.38, 0.5, 3.0, '#e63030');
+
+  // Heat/glow behind car
+  ctx.save();
+  ctx.globalAlpha = 0.15;
+  const glow = ctx.createRadialGradient(S*0.5, S*0.55, 0, S*0.5, S*0.55, 120);
+  glow.addColorStop(0, '#ff6600');
+  glow.addColorStop(1, 'transparent');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, S, S);
+  ctx.restore();
+
+  // Title
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 90px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('HOT', S*0.5, S*0.78);
+  ctx.fillText('LAP', S*0.5, S*0.92);
+
+  // Orange underline accent
+  ctx.strokeStyle = '#ff4400';
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(S*0.25, S*0.97); ctx.lineTo(S*0.75, S*0.97);
+  ctx.stroke();
+})();
+
+// B. Lights Out
+(function() {
+  const c = document.getElementById('tB');
+  const ctx = c.getContext('2d');
+
+  // Very dark background
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(0, 0, S, S);
+
+  // Subtle track surface
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(S*0.1, S*0.35, S*0.8, S*0.65);
+
+  // 5 red lights
+  const lightR = 22;
+  const lightSpacing = 65;
+  const lightY = S*0.12;
+  for (let i = -2; i <= 2; i++) {
+    const lx = S/2 + i * lightSpacing;
+    // Glow
+    ctx.save();
+    ctx.globalAlpha = 0.4;
+    const g = ctx.createRadialGradient(lx, lightY, 0, lx, lightY, lightR*3);
+    g.addColorStop(0, '#ff2020');
+    g.addColorStop(1, 'transparent');
+    ctx.fillStyle = g;
+    ctx.fillRect(lx - lightR*3, lightY - lightR*3, lightR*6, lightR*6);
+    ctx.restore();
+    // Housing
+    ctx.fillStyle = '#111';
+    ctx.beginPath(); ctx.arc(lx, lightY, lightR + 5, 0, Math.PI*2); ctx.fill();
+    // Light
+    ctx.fillStyle = '#ff2020';
+    ctx.beginPath(); ctx.arc(lx, lightY, lightR, 0, Math.PI*2); ctx.fill();
+    // Highlight
+    ctx.fillStyle = 'rgba(255,150,150,0.35)';
+    ctx.beginPath(); ctx.arc(lx - 5, lightY - 6, lightR*0.35, 0, Math.PI*2); ctx.fill();
+  }
+
+  // Light panel bar
+  ctx.fillStyle = '#111';
+  ctx.beginPath();
+  ctx.roundRect(S/2 - 185, lightY - 32, 370, 64, 8);
+  ctx.fill();
+  // Re-draw lights on top of panel
+  for (let i = -2; i <= 2; i++) {
+    const lx = S/2 + i * lightSpacing;
+    ctx.fillStyle = '#ff2020';
+    ctx.beginPath(); ctx.arc(lx, lightY, lightR, 0, Math.PI*2); ctx.fill();
+  }
+
+  // Car on grid
+  drawCar(ctx, S*0.42, S*0.58, 0, 3.2, '#e63030');
+
+  // Grid marker
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(S*0.3, S*0.44); ctx.lineTo(S*0.3, S*0.48);
+  ctx.lineTo(S*0.54, S*0.48); ctx.lineTo(S*0.54, S*0.44);
+  ctx.stroke();
+
+  // Title — large, at bottom
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 100px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('HOT LAP', S/2, S*0.82);
+
+  // Red glow under text
+  ctx.save();
+  ctx.globalAlpha = 0.2;
+  const tg = ctx.createRadialGradient(S/2, S*0.82, 0, S/2, S*0.82, 200);
+  tg.addColorStop(0, '#ff2020');
+  tg.addColorStop(1, 'transparent');
+  ctx.fillStyle = tg;
+  ctx.fillRect(0, S*0.65, S, S*0.35);
+  ctx.restore();
+
+  ctx.fillStyle = '#888';
+  ctx.font = '22px sans-serif';
+  ctx.fillText('TIME TRIAL RACING', S/2, S*0.93);
+})();
+
+// C. Stopwatch
+(function() {
+  const c = document.getElementById('tC');
+  const ctx = c.getContext('2d');
+
+  // Gradient background
+  const bg = ctx.createLinearGradient(0, 0, 0, S);
+  bg.addColorStop(0, '#1a1a2a');
+  bg.addColorStop(1, '#0a0a15');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, S, S);
+
+  // Big timer display
+  ctx.fillStyle = '#111';
+  ctx.beginPath();
+  ctx.roundRect(S*0.08, S*0.15, S*0.84, S*0.22, 12);
+  ctx.fill();
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.fillStyle = '#0f0';
+  ctx.font = 'bold 80px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('00:28.47', S/2, S*0.265);
+
+  // "BEST" label
+  ctx.fillStyle = '#5bc8f5';
+  ctx.font = '24px monospace';
+  ctx.fillText('BEST  00:27.93', S/2, S*0.17);
+
+  // Track stripe across middle
+  ctx.save();
+  ctx.translate(S/2, S*0.58);
+  ctx.rotate(-0.1);
+  ctx.fillStyle = '#3d3d3d';
+  ctx.fillRect(-S*0.7, -50, S*1.4, 100);
+  ctx.strokeStyle = '#777';
+  ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(-S*0.7, -50); ctx.lineTo(S*0.7, -50); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-S*0.7, 50); ctx.lineTo(S*0.7, 50); ctx.stroke();
+  ctx.restore();
+
+  // Car racing across
+  drawCar(ctx, S*0.55, S*0.56, -Math.PI/2 - 0.1, 2.5, '#e63030');
+
+  // Speed lines
+  ctx.save();
+  ctx.globalAlpha = 0.12;
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 8; i++) {
+    const x = S*0.1 + Math.random() * S*0.3;
+    const y = S*0.48 + Math.random() * S*0.2;
+    ctx.beginPath();
+    ctx.moveTo(x, y); ctx.lineTo(x + 30 + Math.random()*40, y);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Title at bottom
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 88px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('HOT LAP', S/2, S*0.84);
+
+  ctx.fillStyle = '#ff4400';
+  ctx.font = 'bold 28px sans-serif';
+  ctx.fillText('BEAT YOUR GHOST', S/2, S*0.93);
+})();
+
+// D. Apex Corner
+(function() {
+  const c = document.getElementById('tD');
+  const ctx = c.getContext('2d');
+
+  // Green grass background
+  ctx.fillStyle = '#2d5a1e';
+  ctx.fillRect(0, 0, S, S);
+
+  // Grass texture patches
+  for (let i = 0; i < 100; i++) {
+    ctx.fillStyle = `rgba(${30+Math.random()*20}, ${50+Math.random()*30}, ${10+Math.random()*15}, 0.2)`;
+    ctx.beginPath();
+    ctx.ellipse(Math.random()*S, Math.random()*S, 3+Math.random()*6, 2+Math.random()*4, Math.random()*Math.PI, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // Wide corner track
+  ctx.save();
+  ctx.strokeStyle = '#3d3d3d';
+  ctx.lineWidth = 130;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-30, S*0.7);
+  ctx.lineTo(S*0.3, S*0.7);
+  ctx.quadraticCurveTo(S*0.65, S*0.7, S*0.65, S*0.35);
+  ctx.lineTo(S*0.65, -30);
+  ctx.stroke();
+
+  // Walls
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 6;
+  // Outer wall
+  ctx.beginPath();
+  ctx.moveTo(-30, S*0.7 - 63);
+  ctx.lineTo(S*0.3, S*0.7 - 63);
+  ctx.quadraticCurveTo(S*0.65 - 63, S*0.7 - 63, S*0.65 - 63, S*0.35);
+  ctx.lineTo(S*0.65 - 63, -30);
+  ctx.stroke();
+  // Inner wall
+  ctx.beginPath();
+  ctx.moveTo(-30, S*0.7 + 63);
+  ctx.lineTo(S*0.25, S*0.7 + 63);
+  ctx.quadraticCurveTo(S*0.65 + 63, S*0.7 + 63, S*0.65 + 63, S*0.35);
+  ctx.lineTo(S*0.65 + 63, -30);
+  ctx.stroke();
+  ctx.restore();
+
+  // Curbs on inside of corner
+  const curbSegs = 10;
+  for (let i = 0; i < curbSegs; i++) {
+    const a0 = Math.PI*0.5 + (i/curbSegs) * Math.PI*0.5;
+    const a1 = Math.PI*0.5 + ((i+1)/curbSegs) * Math.PI*0.5;
+    ctx.fillStyle = i % 2 === 0 ? '#cc2222' : '#eee';
+    ctx.beginPath();
+    ctx.arc(S*0.65, S*0.7, 63, a0, a1);
+    ctx.arc(S*0.65, S*0.7, 78, a1, a0, true);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Car hitting the apex
+  drawCar(ctx, S*0.52, S*0.52, 0.7, 3.5, '#e63030');
+
+  // Skid marks
+  ctx.save();
+  ctx.globalAlpha = 0.35;
+  ctx.strokeStyle = '#111';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(S*0.25, S*0.62);
+  ctx.quadraticCurveTo(S*0.4, S*0.6, S*0.48, S*0.5);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(S*0.3, S*0.68);
+  ctx.quadraticCurveTo(S*0.42, S*0.66, S*0.52, S*0.56);
+  ctx.stroke();
+  ctx.restore();
+
+  // Title — top right
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 100px sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'top';
+  ctx.fillText('HOT', S*0.95, S*0.04);
+  ctx.fillText('LAP', S*0.95, S*0.15);
+
+  // Orange accent
+  ctx.fillStyle = '#ff4400';
+  ctx.fillRect(S*0.78, S*0.28, S*0.17, 5);
+})();
+</script>

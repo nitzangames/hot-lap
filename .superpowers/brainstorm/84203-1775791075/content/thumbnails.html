@@ -1,0 +1,380 @@
+<h2>Thumbnail Options — 1024x1024</h2>
+<p class="subtitle">Click to select</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image"><canvas id="tA" width="512" height="512" style="width:100%;height:auto;border-radius:6px;"></canvas></div>
+    <div class="card-body"><h3>A. Top-Down Action</h3><p>Car on track from above, speed lines, bold title</p></div>
+  </div>
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image"><canvas id="tB" width="512" height="512" style="width:100%;height:auto;border-radius:6px;"></canvas></div>
+    <div class="card-body"><h3>B. Grid Start</h3><p>Car on the starting grid, lights above, dramatic</p></div>
+  </div>
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image"><canvas id="tC" width="512" height="512" style="width:100%;height:auto;border-radius:6px;"></canvas></div>
+    <div class="card-body"><h3>C. Track Layout</h3><p>Full track map with car, clean icon style</p></div>
+  </div>
+  <div class="card" data-choice="d" onclick="toggleSelect(this)">
+    <div class="card-image"><canvas id="tD" width="512" height="512" style="width:100%;height:auto;border-radius:6px;"></canvas></div>
+    <div class="card-body"><h3>D. Split View</h3><p>Car close-up on left, track on right, title centered</p></div>
+  </div>
+</div>
+
+<script>
+const S = 512;
+
+// Shared: draw a formula car
+function drawCar(ctx, x, y, angle, scale, color) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  ctx.scale(scale, scale);
+
+  const w = 64, h = 141;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(2, 2, w*0.5, h*0.4, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Rear tires
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(-w*0.5, h*0.06, w*0.16, h*0.25);
+  ctx.fillRect(w*0.34, h*0.06, w*0.16, h*0.25);
+  ctx.fillRect(-w*0.46, -h*0.3, w*0.14, h*0.17);
+  ctx.fillRect(w*0.32, -h*0.3, w*0.14, h*0.17);
+
+  // Wings
+  ctx.fillStyle = '#222';
+  ctx.fillRect(-w*0.55, h*0.38, w*1.1, h*0.04);
+  ctx.fillRect(-w*0.55, h*0.22, w*0.06, h*0.18);
+  ctx.fillRect(w*0.50, h*0.22, w*0.06, h*0.18);
+
+  // Body
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(0, -h*0.46);
+  ctx.lineTo(w*0.2, -h*0.18);
+  ctx.lineTo(w*0.26, h*0.05);
+  ctx.lineTo(w*0.22, h*0.3);
+  ctx.lineTo(-w*0.22, h*0.3);
+  ctx.lineTo(-w*0.26, h*0.05);
+  ctx.lineTo(-w*0.2, -h*0.18);
+  ctx.closePath();
+  ctx.fill();
+
+  // Cockpit
+  ctx.fillStyle = '#111';
+  ctx.fillRect(-w*0.1, -h*0.12, w*0.2, h*0.16);
+
+  // Front wing
+  ctx.fillStyle = '#222';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.12, -h*0.38);
+  ctx.lineTo(-w*0.468, -h*0.3);
+  ctx.lineTo(-w*0.468, -h*0.33);
+  ctx.lineTo(-w*0.12, -h*0.41);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(w*0.12, -h*0.38);
+  ctx.lineTo(w*0.468, -h*0.3);
+  ctx.lineTo(w*0.468, -h*0.33);
+  ctx.lineTo(w*0.12, -h*0.41);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.restore();
+}
+
+// A. Top-Down Action
+(function() {
+  const c = document.getElementById('tA');
+  const ctx = c.getContext('2d');
+
+  // Dark asphalt background
+  ctx.fillStyle = '#2a2a2a';
+  ctx.fillRect(0, 0, S, S);
+
+  // Track stripe (diagonal)
+  ctx.save();
+  ctx.translate(S/2, S/2);
+  ctx.rotate(-0.2);
+  ctx.fillStyle = '#3d3d3d';
+  ctx.fillRect(-S*0.4, -S*0.8, S*0.8, S*1.6);
+  // Walls
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(-S*0.4, -S*0.8); ctx.lineTo(-S*0.4, S*0.8);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(S*0.4, -S*0.8); ctx.lineTo(S*0.4, S*0.8);
+  ctx.stroke();
+  ctx.restore();
+
+  // Speed lines
+  ctx.save();
+  ctx.globalAlpha = 0.15;
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 3;
+  for (let i = 0; i < 15; i++) {
+    const x = 50 + Math.random() * (S - 100);
+    const y = Math.random() * S;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + (Math.random()-0.5)*10, y + 40 + Math.random()*60);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Car
+  drawCar(ctx, S*0.48, S*0.55, -0.15, 2.5, '#e63030');
+
+  // Skid marks behind car
+  ctx.save();
+  ctx.globalAlpha = 0.3;
+  ctx.strokeStyle = '#111';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(S*0.42, S*0.75);
+  ctx.quadraticCurveTo(S*0.44, S*0.65, S*0.45, S*0.6);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(S*0.52, S*0.75);
+  ctx.quadraticCurveTo(S*0.51, S*0.65, S*0.50, S*0.6);
+  ctx.stroke();
+  ctx.restore();
+
+  // Title
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 72px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('RACING', S/2, S*0.15);
+  ctx.fillText('2D', S/2, S*0.27);
+
+  // Subtle gradient overlay at bottom
+  const grad = ctx.createLinearGradient(0, S*0.7, 0, S);
+  grad.addColorStop(0, 'rgba(0,0,0,0)');
+  grad.addColorStop(1, 'rgba(0,0,0,0.5)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, S*0.7, S, S*0.3);
+
+  // Tagline
+  ctx.fillStyle = '#aaa';
+  ctx.font = '24px sans-serif';
+  ctx.fillText('TIME TRIAL RACING', S/2, S*0.9);
+})();
+
+// B. Grid Start
+(function() {
+  const c = document.getElementById('tB');
+  const ctx = c.getContext('2d');
+
+  // Dark background
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(0, 0, S, S);
+
+  // Track surface
+  ctx.fillStyle = '#3d3d3d';
+  ctx.fillRect(S*0.15, 0, S*0.7, S);
+
+  // Checkered line
+  const sqSize = S*0.7/12;
+  for (let r = 0; r < 2; r++) {
+    for (let c2 = 0; c2 < 12; c2++) {
+      ctx.fillStyle = (r + c2) % 2 === 0 ? '#fff' : '#111';
+      ctx.fillRect(S*0.15 + c2 * sqSize, S*0.22 + r * sqSize, sqSize, sqSize);
+    }
+  }
+
+  // F1 lights at top
+  const lightR = 20;
+  const lightSpacing = 70;
+  for (let i = -2; i <= 2; i++) {
+    // Housing
+    ctx.fillStyle = '#111';
+    ctx.beginPath();
+    ctx.arc(S/2 + i * lightSpacing, S*0.08, lightR + 4, 0, Math.PI*2);
+    ctx.fill();
+    // Red glow
+    ctx.fillStyle = 'rgba(255,30,30,0.3)';
+    ctx.beginPath();
+    ctx.arc(S/2 + i * lightSpacing, S*0.08, lightR + 12, 0, Math.PI*2);
+    ctx.fill();
+    // Red light
+    ctx.fillStyle = '#ff2020';
+    ctx.beginPath();
+    ctx.arc(S/2 + i * lightSpacing, S*0.08, lightR, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // Car on grid
+  drawCar(ctx, S*0.38, S*0.5, 0, 2.8, '#e63030');
+
+  // Grid markers
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.lineWidth = 3;
+  // P1 marker
+  const bw = 50, cornerLen = 15;
+  const mx = S*0.38, my = S*0.38;
+  ctx.beginPath();
+  ctx.moveTo(mx-bw, my+cornerLen); ctx.lineTo(mx-bw, my); ctx.lineTo(mx+bw, my); ctx.lineTo(mx+bw, my+cornerLen);
+  ctx.stroke();
+
+  // Title
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 64px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('RACING 2D', S/2, S*0.82);
+
+  ctx.fillStyle = '#888';
+  ctx.font = '22px sans-serif';
+  ctx.fillText('LIGHTS OUT AND AWAY WE GO', S/2, S*0.9);
+})();
+
+// C. Track Layout
+(function() {
+  const c = document.getElementById('tC');
+  const ctx = c.getContext('2d');
+
+  // Dark green background
+  ctx.fillStyle = '#2d4a1e';
+  ctx.fillRect(0, 0, S, S);
+
+  // Draw a sample track layout (simplified circuit shape)
+  ctx.save();
+  ctx.translate(S/2, S*0.48);
+  ctx.scale(0.85, 0.85);
+
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 40;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-150, 180);
+  ctx.lineTo(-150, -80);
+  ctx.quadraticCurveTo(-150, -180, -50, -180);
+  ctx.lineTo(100, -180);
+  ctx.quadraticCurveTo(180, -180, 180, -100);
+  ctx.lineTo(180, 0);
+  ctx.quadraticCurveTo(180, 60, 130, 80);
+  ctx.lineTo(50, 80);
+  ctx.quadraticCurveTo(-10, 80, -10, 140);
+  ctx.lineTo(-10, 180);
+  ctx.quadraticCurveTo(-10, 220, -60, 220);
+  ctx.lineTo(-120, 220);
+  ctx.quadraticCurveTo(-150, 220, -150, 180);
+  ctx.stroke();
+
+  // Red/white curbs on a corner
+  ctx.strokeStyle = '#cc2222';
+  ctx.lineWidth = 8;
+  ctx.beginPath();
+  ctx.arc(180, -180, 75, Math.PI*0.5, Math.PI);
+  ctx.stroke();
+
+  // Car on track
+  ctx.restore();
+  drawCar(ctx, S*0.32, S*0.85, -0.1, 2.2, '#e63030');
+
+  // Start/finish marker
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(S*0.2, S*0.73, S*0.04, 3);
+  ctx.fillRect(S*0.2, S*0.74, S*0.04, 3);
+
+  // Title
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 80px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('RACING', S/2, S*0.08);
+  ctx.font = 'bold 60px sans-serif';
+  ctx.fillText('2D', S/2, S*0.17);
+})();
+
+// D. Split View
+(function() {
+  const c = document.getElementById('tD');
+  const ctx = c.getContext('2d');
+
+  // Left half: dark with car
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(0, 0, S/2, S);
+
+  // Right half: green with track
+  ctx.fillStyle = '#2d4a1e';
+  ctx.fillRect(S/2, 0, S/2, S);
+
+  // Diagonal split line
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(S*0.45, 0);
+  ctx.lineTo(S*0.55, S);
+  ctx.lineTo(S, S);
+  ctx.lineTo(S, 0);
+  ctx.closePath();
+  ctx.clip();
+  ctx.fillStyle = '#2d4a1e';
+  ctx.fillRect(0, 0, S, S);
+
+  // Track on right side
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 30;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(S*0.65, S*0.9);
+  ctx.lineTo(S*0.65, S*0.3);
+  ctx.quadraticCurveTo(S*0.65, S*0.15, S*0.78, S*0.15);
+  ctx.lineTo(S*0.88, S*0.15);
+  ctx.quadraticCurveTo(S*0.95, S*0.15, S*0.95, S*0.3);
+  ctx.lineTo(S*0.95, S*0.7);
+  ctx.quadraticCurveTo(S*0.95, S*0.85, S*0.82, S*0.85);
+  ctx.lineTo(S*0.72, S*0.85);
+  ctx.stroke();
+  ctx.restore();
+
+  // Large car on left
+  drawCar(ctx, S*0.22, S*0.5, -0.05, 3.5, '#e63030');
+
+  // Speed lines on left
+  ctx.save();
+  ctx.globalAlpha = 0.1;
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 10; i++) {
+    const x = 30 + Math.random() * S*0.35;
+    const y = Math.random() * S;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x, y + 30 + Math.random()*40);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Diagonal accent line
+  ctx.strokeStyle = '#e63030';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(S*0.45, 0);
+  ctx.lineTo(S*0.55, S);
+  ctx.stroke();
+
+  // Title centered on the split
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 56px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('RACING', S/2, S*0.08);
+  ctx.fillText('2D', S/2, S*0.16);
+
+  // Bottom tagline
+  ctx.fillStyle = '#aaa';
+  ctx.font = '20px sans-serif';
+  ctx.fillText('TIME TRIAL', S/2, S*0.94);
+})();
+</script>
