@@ -563,7 +563,7 @@ function render() {
   drawGrass(ctx, camera.x, camera.y, camera.angle);
 
   // Track
-  drawTrack(ctx, track, walls, centerLine, curbs, brakeMarkers);
+  drawTrack(ctx, track, walls, centerLine, curbs, brakeMarkers, currentTrackIndex);
 
   // Track surface noise
   drawTrackNoise(ctx, centerLine);

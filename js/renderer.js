@@ -29,7 +29,7 @@ function pillRect(ctx, cx, cy, w, h, r) {
 
 // ── Track rendering ───────────────────────────────────────────────────────────
 
-export function drawTrack(ctx, track, walls, centerLine, curbs, brakeMarkers) {
+export function drawTrack(ctx, track, walls, centerLine, curbs, brakeMarkers, trackIndex) {
   const T = TILE;
 
   // 1. Asphalt fill — draw as thick stroke along center line
@@ -236,6 +236,30 @@ export function drawTrack(ctx, track, walls, centerLine, curbs, brakeMarkers) {
 
       ctx.restore();
     }
+  }
+
+  // In-world track label ("Track NN") painted on the tile after start/finish.
+  // Tile 0 is grid, tile 1 is start/finish; tile 2 is the first tile of the lap.
+  if (typeof trackIndex === 'number' && track.tiles.length >= 3) {
+    const labelTile = track.tiles[2];
+    const wcx = (labelTile.gx + 0.5) * TILE;
+    const wcy = (labelTile.gy + 0.5) * TILE;
+    const fwd = DIR_VEC[labelTile.dir];
+    // Rotation such that canvas -y (text letter-up direction) points along
+    // the fwd vector. Derivation: canvas -y after ctx.rotate(θ) becomes
+    // (sin θ, -cos θ) in world space; set equal to fwd → θ = atan2(fwd.x, -fwd.y).
+    const textAngle = Math.atan2(fwd.x, -fwd.y);
+
+    ctx.save();
+    ctx.translate(wcx, wcy);
+    ctx.rotate(textAngle);
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.font = 'bold 90px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const labelStr = 'TRACK ' + String(trackIndex + 1).padStart(2, '0');
+    ctx.fillText(labelStr, 0, 0);
+    ctx.restore();
   }
 }
 
