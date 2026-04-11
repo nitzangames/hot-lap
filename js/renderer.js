@@ -423,14 +423,15 @@ export function drawTitleScreen(ctx, seed, bodyColor, dt, styleIndex, hue) {
   titleAnimTime += (dt || 0.016);
   const cx = GAME_W / 2;
   ctx.save();
-  ctx.fillStyle = 'rgba(0,0,0,0.72)';
+  // Opaque grass-green background — no race visible behind
+  ctx.fillStyle = '#4a7a2e';
   ctx.fillRect(0, 0, GAME_W, GAME_H);
 
-  // ── Animated speed lines in background ──
+  // ── Animated "speed lines" on the grass ──
   ctx.save();
-  ctx.globalAlpha = 0.10;
-  ctx.strokeStyle = '#fff';
-  ctx.lineWidth = 2;
+  ctx.globalAlpha = 0.14;
+  ctx.strokeStyle = '#3d6524';
+  ctx.lineWidth = 3;
   for (let i = 0; i < 24; i++) {
     const seed2 = i * 137.5;
     const x = (Math.sin(seed2) * 0.5 + 0.5) * GAME_W;
@@ -498,9 +499,11 @@ export function drawTitleScreen(ctx, seed, bodyColor, dt, styleIndex, hue) {
   ctx.fillText('HOT LAP', cx, GAME_H * 0.26 + titleBob + 78);
 
   // ── CHOOSE CAR button (primary) with breathing glow ──
+  // Button is filled with the player's current car body color so it always
+  // matches whatever car they're racing.
   const carBtnW = 560;
   const carBtnH = 130;
-  const carBtnY = GAME_H * 0.42;
+  const carBtnY = GAME_H * 0.48;
   const breathe = 0.5 + 0.5 * Math.sin(titleAnimTime * 2.2);
   ctx.save();
   ctx.shadowColor = bodyColor || '#e63030';
@@ -514,31 +517,15 @@ export function drawTitleScreen(ctx, seed, bodyColor, dt, styleIndex, hue) {
   ctx.font = 'bold 58px sans-serif';
   ctx.fillText('CHOOSE CAR', cx, carBtnY + carBtnH / 2);
 
-  // ── CHOOSE TRACK button (secondary) ──
-  const trackBtnW = 560;
-  const trackBtnH = 110;
-  const trackBtnY = carBtnY + carBtnH + 30;
-  ctx.fillStyle = 'rgba(255,255,255,0.12)';
-  ctx.beginPath();
-  ctx.roundRect(cx - trackBtnW / 2, trackBtnY, trackBtnW, trackBtnH, 20);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.45)';
-  ctx.lineWidth = 3;
-  ctx.stroke();
-  ctx.fillStyle = '#e0e0e0';
-  ctx.font = 'bold 46px sans-serif';
-  ctx.fillText('CHOOSE TRACK', cx, trackBtnY + trackBtnH / 2);
-
   // Version
-  ctx.fillStyle = '#666';
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
   ctx.font = '24px sans-serif';
-  ctx.fillText('v0.38', cx, GAME_H * 0.92);
+  ctx.fillText('v0.39', cx, GAME_H * 0.92);
 
   ctx.restore();
 
   return {
-    carBox:   { x: cx - carBtnW / 2,   y: carBtnY,   w: carBtnW,   h: carBtnH   },
-    trackBox: { x: cx - trackBtnW / 2, y: trackBtnY, w: trackBtnW, h: trackBtnH },
+    carBox: { x: cx - carBtnW / 2, y: carBtnY, w: carBtnW, h: carBtnH },
   };
 }
 

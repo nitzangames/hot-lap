@@ -353,11 +353,6 @@ function handleClick(clientX, clientY) {
       playClick();
       hapticTap();
       gameState.state = 'carselect';
-    } else if (hitTest(x, y, titleHitAreas.trackBox)) {
-      playClick();
-      hapticTap();
-      ensureTrackCache();
-      gameState.state = 'trackselect';
     }
   } else if (gameState.state === 'finished' && finishHitAreas) {
     if (hitTest(x, y, finishHitAreas.retryBox)) {
