@@ -580,12 +580,27 @@ function fixedUpdate() {
     // Keep recording ghost
     ghost.record(car.physX, car.physY, car.physAngle);
     ghost.advancePlayback();
+    if (topGhost) topGhost.advancePlayback();
 
     finishDelayTimer += FIXED_DT;
     if (finishDelayTimer >= FINISH_DELAY) {
       gameState.finish(finishPreviousBest);
       const isNew = ghost.saveIfBest(gameState.raceTime);
       gameState.isNewRecord = isNew;
+
+      // Leaderboard: submit if this is a new PB, and fetch the finish panel.
+      // Both are fire-and-forget — the finish screen renders immediately
+      // and the panel populates async.
+      leaderboard.clearFinishPanel();
+      if (isNew) {
+        leaderboard.submitIfBest(
+          currentTrackIndex,
+          gameState.raceTime,
+          ghost.recording, // the just-completed run's raw frames
+          { styleIndex: carConfig.styleIndex, hue: carConfig.hue }
+        ).catch(() => {});
+      }
+      leaderboard.fetchFinishPanel(currentTrackIndex).catch(() => {});
     }
   }
   // title, finished, crashed: no physics
