@@ -1145,7 +1145,7 @@ function drawMinimapIntoRect(ctx, centerLine, startAngle, x, y, w, h) {
  * @param {Array<number|null>} bestTimes - best time in ms per track, or null
  * @returns {{ tileBoxes: {x,y,w,h,index}[], backBox: {x,y,w,h} }} hit areas
  */
-export function drawTrackSelect(ctx, trackPaths, currentIndex, bestTimes) {
+export function drawTrackSelect(ctx, trackPaths, currentIndex, bestTimes, previewRanks) {
   const cx = GAME_W / 2;
 
   // Dark overlay
@@ -1202,8 +1202,8 @@ export function drawTrackSelect(ctx, trackPaths, currentIndex, bestTimes) {
     }
     ctx.beginPath(); ctx.roundRect(tx, ty, tileSize, tileSize, 12); ctx.stroke();
 
-    // Minimap (top ~70% of tile)
-    const mapH = Math.floor(tileSize * 0.68);
+    // Minimap (top ~60% of tile to leave room for time + rank)
+    const mapH = Math.floor(tileSize * 0.60);
     const path = trackPaths[i];
     drawMinimapIntoRect(ctx, path.centerLine, path.startAngle, tx, ty, tileSize, mapH);
 
@@ -1215,7 +1215,7 @@ export function drawTrackSelect(ctx, trackPaths, currentIndex, bestTimes) {
     ctx.textBaseline = 'top';
     ctx.fillText(label, tx + 12, ty + 10);
 
-    // Best time (bottom of tile)
+    // Best time (above rank line)
     const bt = bestTimes && bestTimes[i];
     const timeText = bt !== null && bt !== undefined
       ? formatTime(bt / 1000)
@@ -1224,7 +1224,17 @@ export function drawTrackSelect(ctx, trackPaths, currentIndex, bestTimes) {
     ctx.font = 'bold 28px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(timeText, tx + tileSize / 2, ty + tileSize - 14);
+    ctx.fillText(timeText, tx + tileSize / 2, ty + tileSize - 38);
+
+    // Rank preview line (only when player has a PB AND preview succeeded AND
+    // the board has at least one entry)
+    const pr = previewRanks && previewRanks[i];
+    if (bt != null && pr && pr.total > 0) {
+      ctx.fillStyle = pr.rank === 1 ? '#f0c040' : '#888';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('#' + pr.rank + ' / ' + pr.total, tx + tileSize / 2, ty + tileSize - 14);
+    }
 
     tileBoxes.push({ x: tx, y: ty, w: tileSize, h: tileSize, index: i });
   }

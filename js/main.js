@@ -652,7 +652,7 @@ function render() {
   } else if (state === 'carselect') {
     carSelectHitAreas = drawCarSelect(ctx, carConfig.styleIndex, carConfig.hue);
   } else if (state === 'trackselect') {
-    trackSelectHitAreas = drawTrackSelect(ctx, cachedTrackPaths, currentTrackIndex, cachedBestTimes);
+    trackSelectHitAreas = drawTrackSelect(ctx, cachedTrackPaths, currentTrackIndex, cachedBestTimes, leaderboard.getCachedPreviewRanks());
   } else if (state === 'countdown') {
     drawCountdown(ctx, gameState.countdownNumber);
   } else if (state === 'racing' && gameState.raceTime < 500) {
