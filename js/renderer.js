@@ -1196,7 +1196,7 @@ export function drawPauseButton(ctx) {
 }
 
 /** Draw the pause menu overlay. Returns hit areas for all interactive elements. */
-export function drawPauseMenu(ctx, sfxOn, hapticsOn) {
+export function drawPauseMenu(ctx, sfxOn, hapticsOn, ghostToggles, topGhostState) {
   // Dim background
   ctx.save();
   ctx.fillStyle = 'rgba(0,0,0,0.7)';
@@ -1250,33 +1250,54 @@ export function drawPauseMenu(ctx, sfxOn, hapticsOn) {
     return { x: tx, y: ty, w: tw, h: th };
   }
 
-  const sfxToggle = drawToggle('SOUND', sfxOn, panelY + 260);
-  const hapticsToggle = drawToggle('HAPTICS', hapticsOn, panelY + 380);
+  const sfxToggle = drawToggle('SOUND', sfxOn, panelY + 200);
+  const hapticsToggle = drawToggle('HAPTICS', hapticsOn, panelY + 290);
+
+  // Ghost toggles
+  const gt = ghostToggles || { your: true, top: false };
+  const yourGhostToggle = drawToggle('YOUR GHOST', gt.your, panelY + 380);
+
+  // Top ghost toggle is disabled when state is 'none' or 'loading'
+  const topOn = gt.top && topGhostState === 'ready';
+  const topLabel = topGhostState === 'loading' ? 'TOP GHOST (loading…)'
+                 : topGhostState === 'none'    ? 'TOP GHOST (none)'
+                 : 'TOP GHOST';
+  const topDisabled = topGhostState !== 'ready';
+  const topGhostToggle = drawToggle(topLabel, topOn, panelY + 470);
+  if (topDisabled) {
+    // Overlay a dim mask to indicate disabled
+    ctx.fillStyle = 'rgba(26,26,26,0.5)';
+    ctx.fillRect(topGhostToggle.x - 300, topGhostToggle.y - 20, topGhostToggle.w + 320, topGhostToggle.h + 40);
+  }
 
   // Buttons
   function drawBtn(label, color, y) {
     const bw = panelW - 160;
     const bx = panelX + 80;
-    const bh = 110;
+    const bh = 100;
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.roundRect(bx, y, bw, bh, 18);
     ctx.fill();
     ctx.fillStyle = '#fff';
-    ctx.font = 'bold 56px sans-serif';
+    ctx.font = 'bold 54px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(label, GAME_W / 2, y + bh / 2);
     return { x: bx, y, w: bw, h: bh };
   }
 
-  const resumeBtn = drawBtn('RESUME', '#2e8a3a', panelY + 540);
-  const retryBtn = drawBtn('RETRY', '#444', panelY + 690);
-  const menuBtn = drawBtn('MAIN MENU', '#444', panelY + 840);
+  const resumeBtn = drawBtn('RESUME', '#2e8a3a', panelY + 600);
+  const retryBtn = drawBtn('RETRY', '#444', panelY + 730);
+  const menuBtn = drawBtn('MAIN MENU', '#444', panelY + 860);
 
   ctx.restore();
 
-  return { sfxToggle, hapticsToggle, resumeBtn, retryBtn, menuBtn };
+  return {
+    sfxToggle, hapticsToggle,
+    yourGhostToggle, topGhostToggle, topGhostDisabled: topDisabled,
+    resumeBtn, retryBtn, menuBtn,
+  };
 }
 
 // ── Track selection screen ──────────────────────────────────────────────────

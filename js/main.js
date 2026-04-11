@@ -287,6 +287,20 @@ function handleClick(clientX, clientY) {
       hapticTap();
       return;
     }
+    if (hitTest(x, y, pauseMenuHitAreas.yourGhostToggle)) {
+      ghostToggles.your = !ghostToggles.your;
+      saveGhostToggles();
+      playClick();
+      hapticTap();
+      return;
+    }
+    if (!pauseMenuHitAreas.topGhostDisabled && hitTest(x, y, pauseMenuHitAreas.topGhostToggle)) {
+      ghostToggles.top = !ghostToggles.top;
+      saveGhostToggles();
+      playClick();
+      hapticTap();
+      return;
+    }
     if (hitTest(x, y, pauseMenuHitAreas.resumeBtn)) {
       playClick();
       hapticTap();
@@ -733,7 +747,18 @@ function render() {
   } else if (state === 'crashed') {
     crashHitAreas = drawCrashScreen(ctx);
   } else if (state === 'paused') {
-    pauseMenuHitAreas = drawPauseMenu(ctx, getSfxEnabled(), getHapticsEnabled());
+    // Determine top ghost state for the current track
+    let topGhostState = 'none';
+    if (topGhost && topGhost.hasFrames()) {
+      topGhostState = 'ready';
+    } else {
+      const tm = leaderboard.getCachedTopMetadata();
+      const entry = tm ? tm[currentTrackIndex] : null;
+      if (entry && entry.hasAttachment) {
+        topGhostState = 'loading'; // metadata says there's a top, but we haven't loaded it yet
+      }
+    }
+    pauseMenuHitAreas = drawPauseMenu(ctx, getSfxEnabled(), getHapticsEnabled(), ghostToggles, topGhostState);
   }
 }
 
