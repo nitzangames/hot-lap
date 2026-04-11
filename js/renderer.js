@@ -419,23 +419,23 @@ export function drawHUD(ctx, currentTime, bestTime, speed, seed) {
 // ── Overlay screens ───────────────────────────────────────────────────────────
 
 let titleAnimTime = 0;
-export function drawTitleScreen(ctx, seed, bodyColor, dt) {
+export function drawTitleScreen(ctx, seed, bodyColor, dt, styleIndex, hue) {
   titleAnimTime += (dt || 0.016);
   const cx = GAME_W / 2;
   ctx.save();
   ctx.fillStyle = 'rgba(0,0,0,0.72)';
   ctx.fillRect(0, 0, GAME_W, GAME_H);
 
-  // Animated speed lines in background
+  // ── Animated speed lines in background ──
   ctx.save();
-  ctx.globalAlpha = 0.08;
+  ctx.globalAlpha = 0.10;
   ctx.strokeStyle = '#fff';
   ctx.lineWidth = 2;
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 24; i++) {
     const seed2 = i * 137.5;
     const x = (Math.sin(seed2) * 0.5 + 0.5) * GAME_W;
-    const baseY = ((seed2 * 0.73 + titleAnimTime * 400) % (GAME_H + 200)) - 100;
-    const lineLen = 60 + Math.sin(seed2 * 2.1) * 40;
+    const baseY = ((seed2 * 0.73 + titleAnimTime * 520) % (GAME_H + 200)) - 100;
+    const lineLen = 70 + Math.sin(seed2 * 2.1) * 50;
     ctx.beginPath();
     ctx.moveTo(x, baseY);
     ctx.lineTo(x, baseY + lineLen);
@@ -443,30 +443,102 @@ export function drawTitleScreen(ctx, seed, bodyColor, dt) {
   }
   ctx.restore();
 
+  // ── Animated cars zooming across the background ──
+  // Two cars at different y, speeds, directions. Use the player's style
+  // so the cars match the car they'll actually drive.
+  const sIdx = typeof styleIndex === 'number' ? styleIndex : 0;
+  const pHue = typeof hue === 'number' ? hue : 0;
+  const animCars = [
+    { y: GAME_H * 0.74, period: 4.2, dir:  1, hue: pHue,       scale: 0.95 },
+    { y: GAME_H * 0.82, period: 5.6, dir: -1, hue: (pHue + 180) % 360, scale: 0.80 },
+  ];
+  for (const c of animCars) {
+    const t = (titleAnimTime / c.period) % 1;
+    const span = GAME_W + 300;
+    const x = c.dir > 0 ? -150 + t * span : GAME_W + 150 - t * span;
+
+    // Motion streaks trailing the car
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+    ctx.lineCap = 'round';
+    for (let s = 0; s < 6; s++) {
+      const sx = x - c.dir * (40 + s * 30);
+      const sy = c.y + (((s * 17 + titleAnimTime * 40) % 24) - 12);
+      ctx.globalAlpha = 0.22 * (1 - s / 6);
+      ctx.lineWidth = 3 - s * 0.35;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(sx - c.dir * 55, sy);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Car sprite — rotate π/2 so the nose faces +x (right) then flip for left
+    ctx.save();
+    ctx.translate(x, c.y);
+    ctx.scale(c.scale, c.scale);
+    // Car convention: forward = (sin(a), -cos(a)). We want forward along +x
+    // (east) for dir=1 → a = π/2. For dir=-1 (west) → a = -π/2.
+    const carAngle = c.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
+    drawStyledCar(ctx, 0, 0, carAngle, sIdx, c.hue, 0.85);
+    ctx.restore();
+  }
+
+  // ── Title text with subtle y-bob ──
+  const titleBob = Math.sin(titleAnimTime * 1.4) * 6;
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 110px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('RACING 2D', cx, GAME_H * 0.36);
+  ctx.fillText('RACING 2D', cx, GAME_H * 0.26 + titleBob);
 
-  // RACE button
-  const raceY = GAME_H * 0.54;
+  // Subtitle
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.font = '34px sans-serif';
+  ctx.fillText('HOT LAP', cx, GAME_H * 0.26 + titleBob + 78);
+
+  // ── CHOOSE CAR button (primary) with breathing glow ──
+  const carBtnW = 560;
+  const carBtnH = 130;
+  const carBtnY = GAME_H * 0.42;
+  const breathe = 0.5 + 0.5 * Math.sin(titleAnimTime * 2.2);
+  ctx.save();
+  ctx.shadowColor = bodyColor || '#e63030';
+  ctx.shadowBlur = 18 + breathe * 22;
   ctx.fillStyle = bodyColor || '#e63030';
   ctx.beginPath();
-  ctx.roundRect(cx - 220, raceY, 440, 120, 20);
+  ctx.roundRect(cx - carBtnW / 2, carBtnY, carBtnW, carBtnH, 22);
   ctx.fill();
+  ctx.restore();
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 64px sans-serif';
-  ctx.fillText('RACE', cx, raceY + 60);
+  ctx.font = 'bold 58px sans-serif';
+  ctx.fillText('CHOOSE CAR', cx, carBtnY + carBtnH / 2);
 
+  // ── CHOOSE TRACK button (secondary) ──
+  const trackBtnW = 560;
+  const trackBtnH = 110;
+  const trackBtnY = carBtnY + carBtnH + 30;
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.beginPath();
+  ctx.roundRect(cx - trackBtnW / 2, trackBtnY, trackBtnW, trackBtnH, 20);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.fillStyle = '#e0e0e0';
+  ctx.font = 'bold 46px sans-serif';
+  ctx.fillText('CHOOSE TRACK', cx, trackBtnY + trackBtnH / 2);
+
+  // Version
   ctx.fillStyle = '#666';
   ctx.font = '24px sans-serif';
-  ctx.fillText('v0.37', cx, GAME_H * 0.92);
+  ctx.fillText('v0.38', cx, GAME_H * 0.92);
 
   ctx.restore();
 
   return {
-    raceBox: { x: cx - 220, y: raceY, w: 440, h: 120 },
+    carBox:   { x: cx - carBtnW / 2,   y: carBtnY,   w: carBtnW,   h: carBtnH   },
+    trackBox: { x: cx - trackBtnW / 2, y: trackBtnY, w: trackBtnW, h: trackBtnH },
   };
 }
 

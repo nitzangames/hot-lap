@@ -349,10 +349,15 @@ function handleClick(clientX, clientY) {
   }
 
   if (gameState.state === 'title' && titleHitAreas) {
-    if (hitTest(x, y, titleHitAreas.raceBox)) {
+    if (hitTest(x, y, titleHitAreas.carBox)) {
       playClick();
       hapticTap();
       gameState.state = 'carselect';
+    } else if (hitTest(x, y, titleHitAreas.trackBox)) {
+      playClick();
+      hapticTap();
+      ensureTrackCache();
+      gameState.state = 'trackselect';
     }
   } else if (gameState.state === 'finished' && finishHitAreas) {
     if (hitTest(x, y, finishHitAreas.retryBox)) {
@@ -738,7 +743,7 @@ function render() {
   // Overlays
   if (state === 'title') {
     const { bodyColor } = hueToColors(carConfig.hue);
-    titleHitAreas = drawTitleScreen(ctx, currentSeedAlpha, bodyColor, 1/60);
+    titleHitAreas = drawTitleScreen(ctx, currentSeedAlpha, bodyColor, 1/60, carConfig.styleIndex, carConfig.hue);
   } else if (state === 'carselect') {
     carSelectHitAreas = drawCarSelect(ctx, carConfig.styleIndex, carConfig.hue);
   } else if (state === 'trackselect') {
