@@ -750,8 +750,7 @@ function render() {
 
   // Overlays
   if (state === 'title') {
-    const { bodyColor } = hueToColors(carConfig.hue);
-    titleHitAreas = drawTitleScreen(ctx, currentSeedAlpha, bodyColor, 1/60, carConfig.styleIndex, carConfig.hue);
+    titleHitAreas = drawTitleScreen(ctx, 1/60, carConfig.styleIndex, carConfig.hue);
   } else if (state === 'carselect') {
     carSelectHitAreas = drawCarSelect(ctx, carConfig.styleIndex, carConfig.hue);
   } else if (state === 'trackselect') {

@@ -419,7 +419,7 @@ export function drawHUD(ctx, currentTime, bestTime, speed, seed) {
 // ── Overlay screens ───────────────────────────────────────────────────────────
 
 let titleAnimTime = 0;
-export function drawTitleScreen(ctx, seed, bodyColor, dt, styleIndex, hue) {
+export function drawTitleScreen(ctx, dt, styleIndex, hue) {
   titleAnimTime += (dt || 0.016);
   const cx = GAME_W / 2;
   ctx.save();
@@ -444,44 +444,70 @@ export function drawTitleScreen(ctx, seed, bodyColor, dt, styleIndex, hue) {
   }
   ctx.restore();
 
-  // ── Animated cars zooming across the background ──
-  // Two cars at different y, speeds, directions. Use the player's style
-  // so the cars match the car they'll actually drive.
+  // ── Horizontal track strip across the lower third ──
+  // Static asphalt + alternating red/white curbs on the top and bottom edges,
+  // with a dashed white center line. The animated cars drive along this strip.
+  const trackCenterY = GAME_H * 0.78;
+  const trackH = 300;
+  const trackTop = trackCenterY - trackH / 2;
+  // Asphalt
+  ctx.fillStyle = '#3d3d3d';
+  ctx.fillRect(0, trackTop, GAME_W, trackH);
+  // Curbs
+  const curbH = 28;
+  const curbSegW = 60;
+  const segCount = Math.ceil(GAME_W / curbSegW) + 1;
+  for (let i = 0; i < segCount; i++) {
+    ctx.fillStyle = i % 2 === 0 ? '#cc2222' : '#eeeeee';
+    ctx.fillRect(i * curbSegW, trackTop, curbSegW, curbH);
+    ctx.fillRect(i * curbSegW, trackTop + trackH - curbH, curbSegW, curbH);
+  }
+  // Dashed center line
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+  ctx.lineWidth = 4;
+  ctx.setLineDash([34, 26]);
+  ctx.beginPath();
+  ctx.moveTo(0, trackCenterY);
+  ctx.lineTo(GAME_W, trackCenterY);
+  ctx.stroke();
+  ctx.restore();
+
+  // ── Animated cars zooming across the track ──
+  // Both cars go the same direction (left → right). Two different speeds
+  // and phase offsets so they don't stack.
   const sIdx = typeof styleIndex === 'number' ? styleIndex : 0;
   const pHue = typeof hue === 'number' ? hue : 0;
   const animCars = [
-    { y: GAME_H * 0.74, period: 4.2, dir:  1, hue: pHue,       scale: 0.95 },
-    { y: GAME_H * 0.82, period: 5.6, dir: -1, hue: (pHue + 180) % 360, scale: 0.80 },
+    { y: trackCenterY - 60, period: 2.6, phase: 0.0,  hue: pHue,                   scale: 0.95 },
+    { y: trackCenterY + 60, period: 3.8, phase: 0.55, hue: (pHue + 210) % 360,     scale: 0.85 },
   ];
   for (const c of animCars) {
-    const t = (titleAnimTime / c.period) % 1;
-    const span = GAME_W + 300;
-    const x = c.dir > 0 ? -150 + t * span : GAME_W + 150 - t * span;
+    const t = ((titleAnimTime / c.period) + c.phase) % 1;
+    const span = GAME_W + 400;
+    const x = -200 + t * span;
 
     // Motion streaks trailing the car
     ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
     ctx.lineCap = 'round';
     for (let s = 0; s < 6; s++) {
-      const sx = x - c.dir * (40 + s * 30);
+      const sx = x - (50 + s * 32);
       const sy = c.y + (((s * 17 + titleAnimTime * 40) % 24) - 12);
-      ctx.globalAlpha = 0.22 * (1 - s / 6);
+      ctx.globalAlpha = 0.26 * (1 - s / 6);
       ctx.lineWidth = 3 - s * 0.35;
       ctx.beginPath();
       ctx.moveTo(sx, sy);
-      ctx.lineTo(sx - c.dir * 55, sy);
+      ctx.lineTo(sx - 60, sy);
       ctx.stroke();
     }
     ctx.restore();
 
-    // Car sprite — rotate π/2 so the nose faces +x (right) then flip for left
+    // Car sprite — rotated π/2 so the nose faces +x (right)
     ctx.save();
     ctx.translate(x, c.y);
     ctx.scale(c.scale, c.scale);
-    // Car convention: forward = (sin(a), -cos(a)). We want forward along +x
-    // (east) for dir=1 → a = π/2. For dir=-1 (west) → a = -π/2.
-    const carAngle = c.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
-    drawStyledCar(ctx, 0, 0, carAngle, sIdx, c.hue, 0.85);
+    drawStyledCar(ctx, 0, 0, Math.PI / 2, sIdx, c.hue, 0.95);
     ctx.restore();
   }
 
@@ -498,21 +524,17 @@ export function drawTitleScreen(ctx, seed, bodyColor, dt, styleIndex, hue) {
   ctx.font = '34px sans-serif';
   ctx.fillText('HOT LAP', cx, GAME_H * 0.26 + titleBob + 78);
 
-  // ── CHOOSE CAR button (primary) with breathing glow ──
-  // Button is filled with the player's current car body color so it always
-  // matches whatever car they're racing.
+  // ── CHOOSE CAR button (neutral dark grey with white outline) ──
   const carBtnW = 560;
   const carBtnH = 130;
-  const carBtnY = GAME_H * 0.48;
-  const breathe = 0.5 + 0.5 * Math.sin(titleAnimTime * 2.2);
-  ctx.save();
-  ctx.shadowColor = bodyColor || '#e63030';
-  ctx.shadowBlur = 18 + breathe * 22;
-  ctx.fillStyle = bodyColor || '#e63030';
+  const carBtnY = GAME_H * 0.44;
+  ctx.fillStyle = '#1f1f1f';
   ctx.beginPath();
   ctx.roundRect(cx - carBtnW / 2, carBtnY, carBtnW, carBtnH, 22);
   ctx.fill();
-  ctx.restore();
+  ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+  ctx.lineWidth = 3;
+  ctx.stroke();
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 58px sans-serif';
   ctx.fillText('CHOOSE CAR', cx, carBtnY + carBtnH / 2);
@@ -520,7 +542,7 @@ export function drawTitleScreen(ctx, seed, bodyColor, dt, styleIndex, hue) {
   // Version
   ctx.fillStyle = 'rgba(255,255,255,0.35)';
   ctx.font = '24px sans-serif';
-  ctx.fillText('v0.39', cx, GAME_H * 0.92);
+  ctx.fillText('v0.40', cx, GAME_H * 0.97);
 
   ctx.restore();
 
