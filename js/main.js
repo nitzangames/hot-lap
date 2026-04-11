@@ -297,6 +297,7 @@ function handleClick(clientX, clientY) {
       playClick();
       hapticTap();
       ghost.resetRecording();
+      if (topGhost) topGhost.resetPlayback();
       spawnCar();
       gameState.startCountdown();
       return;
@@ -329,6 +330,7 @@ function handleClick(clientX, clientY) {
       playClick();
       hapticTap();
       ghost.resetRecording();
+      if (topGhost) topGhost.resetPlayback();
       spawnCar();
       gameState.startCountdown();
     } else if (hitTest(x, y, finishHitAreas.nextBox)) {
@@ -352,6 +354,7 @@ function handleClick(clientX, clientY) {
   } else if (gameState.state === 'crashed' && crashHitAreas) {
     if (hitTest(x, y, crashHitAreas.retryBox)) {
       ghost.resetRecording();
+      if (topGhost) topGhost.resetPlayback();
       spawnCar();
       gameState.startCountdown();
     } else if (hitTest(x, y, crashHitAreas.menuBox)) {
@@ -546,6 +549,7 @@ function fixedUpdate() {
 
     // Advance ghost playback
     ghost.advancePlayback();
+    if (topGhost) topGhost.advancePlayback();
 
     // Tick race time
     gameState.tickRace();
@@ -618,11 +622,25 @@ function render() {
   // Skid marks (on track surface, before cars)
   skidmarks.draw(ctx);
 
-  // Ghost car (draw behind player)
+  // Ghost cars (draw behind player). Own ghost uses the player's chosen style,
+  // top ghost uses the WR holder's style from leaderboard metadata.
   if (state === 'racing' || state === 'countdown' || state === 'finishing' || state === 'paused') {
-    const ghostFrame = ghost.getGhostFrame();
-    if (ghostFrame) {
-      drawStyledCar(ctx, ghostFrame.x, ghostFrame.y, ghostFrame.angle, carConfig.styleIndex, carConfig.hue + 180, GHOST_ALPHA);
+    if (ghostToggles.your) {
+      const ghostFrame = ghost.getGhostFrame();
+      if (ghostFrame) {
+        drawStyledCar(ctx, ghostFrame.x, ghostFrame.y, ghostFrame.angle, carConfig.styleIndex, carConfig.hue + 180, GHOST_ALPHA);
+      }
+    }
+    if (ghostToggles.top && topGhost) {
+      const tgFrame = topGhost.getFrame();
+      if (tgFrame) {
+        // Pull WR holder's car style/hue from cached metadata
+        const tm = leaderboard.getCachedTopMetadata();
+        const meta = (tm && tm[currentTrackIndex] && tm[currentTrackIndex].metadata) || {};
+        const style = typeof meta.styleIndex === 'number' ? meta.styleIndex : carConfig.styleIndex;
+        const hue = typeof meta.hue === 'number' ? meta.hue : (carConfig.hue + 60);
+        drawStyledCar(ctx, tgFrame.x, tgFrame.y, tgFrame.angle, style, hue, GHOST_ALPHA);
+      }
     }
   }
 
