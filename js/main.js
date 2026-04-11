@@ -20,6 +20,7 @@ import { World, Vec2 } from '../physics2d/index.js';
 import { SkidMarks } from './skidmarks.js';
 import { ScreenShake, drawGrass, drawTrackNoise, triggerCrashFlash, drawCrashFlash, TireSmoke } from './effects.js';
 import { drawStyledCar, loadCarConfig, saveCarConfig, hueToColors } from './car-styles.js';
+import * as leaderboard from './leaderboard.js';
 
 // ── Canvas setup ──────────────────────────────────────────────────────────────
 // Logical pixels only — no DPR multiplication. CSS handles responsive sizing
@@ -85,6 +86,14 @@ function ensureTrackCache() {
     });
   }
   refreshBestTimes();
+
+  // Fire-and-forget async fetch for leaderboard preview ranks and top metadata.
+  // Both caches start null (tiles render without rank line); these resolve
+  // within ~500ms and the next render frame picks them up.
+  if (leaderboard.hasSdk()) {
+    leaderboard.fetchPreviewRanks(cachedBestTimes).catch(() => {});
+    leaderboard.fetchTopMetadata().catch(() => {});
+  }
 }
 
 function refreshBestTimes() {
