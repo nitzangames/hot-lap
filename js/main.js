@@ -4,7 +4,7 @@ import { Camera } from './camera.js';
 import {
   drawTrack, drawCar, drawHUD,
   drawTitleScreen, drawCountdown, drawFinishScreen, drawCrashScreen,
-  drawSteeringWheel, drawMinimap, drawCarSelect,
+  drawSteeringWheel, drawMinimap, drawCarSelect, drawTrackSelect,
   drawPauseButton, drawPauseMenu,
 } from './renderer.js';
 import {
@@ -207,6 +207,7 @@ function checkFinishLine() {
 let carConfig = loadCarConfig();
 let carSelectHitAreas = null;
 let titleHitAreas = null;
+let trackSelectHitAreas = null;
 let finishHitAreas = null;
 let crashHitAreas = null;
 let pauseButtonBox = null;
@@ -587,6 +588,8 @@ function render() {
     titleHitAreas = drawTitleScreen(ctx, currentSeedAlpha, bodyColor, 1/60);
   } else if (state === 'carselect') {
     carSelectHitAreas = drawCarSelect(ctx, carConfig.styleIndex, carConfig.hue);
+  } else if (state === 'trackselect') {
+    trackSelectHitAreas = drawTrackSelect(ctx, cachedTrackPaths, currentTrackIndex, cachedBestTimes);
   } else if (state === 'countdown') {
     drawCountdown(ctx, gameState.countdownNumber);
   } else if (state === 'racing' && gameState.raceTime < 500) {

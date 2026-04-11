@@ -1059,3 +1059,154 @@ export function drawPauseMenu(ctx, sfxOn, hapticsOn) {
 
   return { sfxToggle, hapticsToggle, resumeBtn, retryBtn, menuBtn };
 }
+
+// ── Track selection screen ──────────────────────────────────────────────────
+
+/**
+ * Draw a small minimap of a track's center line into a rectangular region.
+ * Scales and centers the track to fill the rect with padding.
+ */
+function drawMinimapIntoRect(ctx, centerLine, startAngle, x, y, w, h) {
+  // Compute bounds
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const p of centerLine) {
+    if (p.x < minX) minX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y > maxY) maxY = p.y;
+  }
+  const pad = TILE;
+  minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+
+  const trackW = maxX - minX;
+  const trackH = maxY - minY;
+  // Account for rotation by using the larger dimension both ways
+  const maxDim = Math.max(trackW, trackH);
+  const inset = 16;
+  const scale = Math.min((w - inset * 2) / maxDim, (h - inset * 2) / maxDim);
+  const trackCx = (minX + trackW / 2);
+  const trackCy = (minY + trackH / 2);
+
+  ctx.save();
+  // Center of the destination rect
+  ctx.translate(x + w / 2, y + h / 2);
+  // Rotate so start direction points up
+  ctx.rotate(-(startAngle || 0));
+
+  const ox = -trackCx * scale;
+  const oy = -trackCy * scale;
+
+  // Track path stroke
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = Math.max(2, TILE * scale * 0.8);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  for (let i = 0; i < centerLine.length; i++) {
+    const px = centerLine[i].x * scale + ox;
+    const py = centerLine[i].y * scale + oy;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+/**
+ * Draw the track selection screen.
+ * @param {Array<{track, centerLine, startAngle}>} trackPaths - cached paths (length 20)
+ * @param {number} currentIndex - currently selected/last-played track index
+ * @param {Array<number|null>} bestTimes - best time in ms per track, or null
+ * @returns {{ tileBoxes: {x,y,w,h,index}[], backBox: {x,y,w,h} }} hit areas
+ */
+export function drawTrackSelect(ctx, trackPaths, currentIndex, bestTimes) {
+  const cx = GAME_W / 2;
+
+  // Dark overlay
+  ctx.fillStyle = 'rgba(0,0,0,0.88)';
+  ctx.fillRect(0, 0, GAME_W, GAME_H);
+
+  // Back button (top-left)
+  const backX = 30, backY = 30, backW = 140, backH = 70;
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.beginPath(); ctx.roundRect(backX, backY, backW, backH, 12); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+  ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 36px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('← BACK', backX + backW / 2, backY + backH / 2);
+
+  // Title
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 64px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('CHOOSE TRACK', cx, 140);
+
+  // Grid: 4 cols x 5 rows
+  const cols = 4;
+  const rows = 5;
+  const gap = 20;
+  const tileSize = 230;
+  const gridW = cols * tileSize + (cols - 1) * gap;
+  const gridLeft = (GAME_W - gridW) / 2;
+  const gridTop = 220;
+
+  const tileBoxes = [];
+
+  for (let i = 0; i < trackPaths.length; i++) {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const tx = gridLeft + col * (tileSize + gap);
+    const ty = gridTop + row * (tileSize + gap);
+
+    // Tile background
+    ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    ctx.beginPath(); ctx.roundRect(tx, ty, tileSize, tileSize, 12); ctx.fill();
+
+    // Border (thicker for current)
+    if (i === currentIndex) {
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 4;
+    } else {
+      ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+      ctx.lineWidth = 1;
+    }
+    ctx.beginPath(); ctx.roundRect(tx, ty, tileSize, tileSize, 12); ctx.stroke();
+
+    // Minimap (top ~70% of tile)
+    const mapH = Math.floor(tileSize * 0.68);
+    const path = trackPaths[i];
+    drawMinimapIntoRect(ctx, path.centerLine, path.startAngle, tx, ty, tileSize, mapH);
+
+    // Number label (top-left corner)
+    const label = String(i + 1).padStart(2, '0');
+    ctx.fillStyle = i === currentIndex ? '#fff' : '#ccc';
+    ctx.font = 'bold 34px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(label, tx + 12, ty + 10);
+
+    // Best time (bottom of tile)
+    const bt = bestTimes && bestTimes[i];
+    const timeText = bt !== null && bt !== undefined
+      ? formatTime(bt / 1000)
+      : '--:--.--';
+    ctx.fillStyle = bt != null ? '#f0c040' : '#666';
+    ctx.font = 'bold 28px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(timeText, tx + tileSize / 2, ty + tileSize - 14);
+
+    tileBoxes.push({ x: tx, y: ty, w: tileSize, h: tileSize, index: i });
+  }
+
+  return {
+    tileBoxes,
+    backBox: { x: backX, y: backY, w: backW, h: backH },
+  };
+}
