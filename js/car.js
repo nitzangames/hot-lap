@@ -1,9 +1,29 @@
-import { Vec2, Circle, Body } from '../physics2d/index.js';
+import { Vec2, Capsule, Body } from '../physics2d/index.js';
 import {
   CAR_W, CAR_H, CAR_MASS, CAR_RESTITUTION, CAR_FRICTION,
   MAX_SPEED, ACCELERATION, TURN_RATE, TURN_SPEED_PENALTY,
   CRASH_ANGLE_THRESHOLD, WALL_SPEED_LOSS, FIXED_DT,
 } from './constants.js';
+
+// ── Capsule / car angle convention ────────────────────────────────────────
+//
+// Hot Lap's car uses "logical angle" = 0 means facing north (up-screen) and
+// forward direction = (sin(angle), -cos(angle)). Physics2D's Capsule orients
+// its spine horizontally at body.angle=0 (along +x). To make the capsule's
+// long axis align with the car's forward direction we store
+//
+//     body.angle = logicalAngle + π/2
+//
+// All external consumers read the car's angle through the getters below,
+// which subtract π/2 back out. Inside this file, any forward-direction math
+// that used to read `body.angle` directly now uses the substitution
+//
+//     sin(logicalAngle) = sin(body.angle - π/2) = -cos(body.angle)
+//    -cos(logicalAngle) = -cos(body.angle - π/2) = -sin(body.angle)
+//
+// so forward = (-cos(body.angle), -sin(body.angle)).
+
+const ANGLE_OFFSET = Math.PI / 2;
 
 export class Car {
   constructor(world) {
@@ -17,16 +37,20 @@ export class Car {
 
   /**
    * Create the car's physics body and add it to the world.
+   * @param {number} angle - logical angle (0 = facing north)
    */
   spawn(x, y, angle) {
-    const shape = new Circle(CAR_W * 0.5);
+    // Capsule: spine length = CAR_H - CAR_W, hemisphere radius = CAR_W/2.
+    // Total collider length = spine + 2*radius = CAR_H, so the collider
+    // matches the rendered car's footprint instead of a short circle.
+    const shape = new Capsule(CAR_H - CAR_W, CAR_W * 0.5);
     this.body = new Body({
       shape,
       position: new Vec2(x, y),
       mass: CAR_MASS,
       restitution: CAR_RESTITUTION,
       friction: CAR_FRICTION,
-      angle,
+      angle: angle + ANGLE_OFFSET,
       userData: { type: 'car' },
     });
     this.world.addBody(this.body);
@@ -46,7 +70,7 @@ export class Car {
     this.tickCount++;
     this._wallHitThisTick = false;
 
-    // 1. Apply steering — directly modify body angle
+    // 1. Apply steering — directly modify body.angle (capsule-oriented)
     this.body.angle += steering * TURN_RATE * FIXED_DT;
     this.body._aabbDirty = true;
 
@@ -62,11 +86,11 @@ export class Car {
       if (this.speed < effectiveMax) this.speed = effectiveMax;
     }
 
-    // 4. Set velocity in forward direction
-    //    Car forward = (sin(angle), -cos(angle))
-    const angle = this.body.angle;
-    const vx = Math.sin(angle) * this.speed;
-    const vy = -Math.cos(angle) * this.speed;
+    // 4. Set velocity in forward direction.
+    //    forward = (-cos(body.angle), -sin(body.angle))  — see top-of-file note
+    const a = this.body.angle;
+    const vx = -Math.cos(a) * this.speed;
+    const vy = -Math.sin(a) * this.speed;
     this.body.velocity.set(vx, vy);
 
     // 5. Zero angular velocity — we control angle directly
@@ -93,10 +117,10 @@ export class Car {
     if (!this.body || this.crashed || this._wallHitThisTick) return;
     this._wallHitThisTick = true;
 
-    const angle = this.body.angle;
-    // Forward direction
-    const fx = Math.sin(angle);
-    const fy = -Math.cos(angle);
+    // Forward direction — see top-of-file note on the angle offset
+    const a = this.body.angle;
+    const fx = -Math.cos(a);
+    const fy = -Math.sin(a);
 
     // Contact normal
     const nx = contact.normal.x;
@@ -127,7 +151,7 @@ export class Car {
   }
 
   get angle() {
-    return this.body ? this.body.renderAngle : 0;
+    return this.body ? this.body.renderAngle - ANGLE_OFFSET : 0;
   }
 
   // ── Physics position getters (use direct position) ──
@@ -141,6 +165,6 @@ export class Car {
   }
 
   get physAngle() {
-    return this.body ? this.body.angle : 0;
+    return this.body ? this.body.angle - ANGLE_OFFSET : 0;
   }
 }
