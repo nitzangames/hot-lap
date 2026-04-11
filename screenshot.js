@@ -14,7 +14,7 @@ const puppeteer = require('puppeteer');
   await new Promise(r => setTimeout(r, 1000));
 
   // Screenshot 1: Title screen
-  await page.screenshot({ path: '/Users/nitzanwilnai/Programming/Claude/JSGames/RacingGame2D/screenshot-title.png' });
+  await page.screenshot({ path: './screenshot-title.png' });
   console.log('Saved: screenshot-title.png');
 
   // Tap to go to car select
@@ -22,7 +22,7 @@ const puppeteer = require('puppeteer');
   await new Promise(r => setTimeout(r, 500));
 
   // Screenshot 2: Car selection screen
-  await page.screenshot({ path: '/Users/nitzanwilnai/Programming/Claude/JSGames/RacingGame2D/screenshot-carselect.png' });
+  await page.screenshot({ path: './screenshot-carselect.png' });
   console.log('Saved: screenshot-carselect.png');
 
   // Click the RACE button (bottom center area)
@@ -30,14 +30,14 @@ const puppeteer = require('puppeteer');
   await new Promise(r => setTimeout(r, 500));
 
   // Screenshot 3: Countdown
-  await page.screenshot({ path: '/Users/nitzanwilnai/Programming/Claude/JSGames/RacingGame2D/screenshot-countdown.png' });
+  await page.screenshot({ path: './screenshot-countdown.png' });
   console.log('Saved: screenshot-countdown.png');
 
   // Wait for race to start
   await new Promise(r => setTimeout(r, 4000));
 
   // Screenshot 4: Racing
-  await page.screenshot({ path: '/Users/nitzanwilnai/Programming/Claude/JSGames/RacingGame2D/screenshot-racing.png' });
+  await page.screenshot({ path: './screenshot-racing.png' });
   console.log('Saved: screenshot-racing.png');
 
   if (errors.length > 0) {
