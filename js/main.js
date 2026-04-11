@@ -15,11 +15,13 @@ import {
 import { Car } from './car.js';
 import { Input } from './input.js';
 import { Ghost } from './ghost.js';
+import { TopGhost } from './top-ghost.js';
 import { GameState } from './game.js';
 import { World, Vec2 } from '../physics2d/index.js';
 import { SkidMarks } from './skidmarks.js';
 import { ScreenShake, drawGrass, drawTrackNoise, triggerCrashFlash, drawCrashFlash, TireSmoke } from './effects.js';
 import { drawStyledCar, loadCarConfig, saveCarConfig, hueToColors } from './car-styles.js';
+import * as leaderboard from './leaderboard.js';
 
 // ── Canvas setup ──────────────────────────────────────────────────────────────
 // Logical pixels only — no DPR multiplication. CSS handles responsive sizing
@@ -65,6 +67,7 @@ let world, track, centerLine, walls, wallBodies, curbs, brakeMarkers;
 const screenShake = new ScreenShake();
 const tireSmoke = new TireSmoke();
 let car, ghost, gameState, skidmarks;
+let topGhost = null; // TopGhost instance for the current track, or null
 let currentTrackIndex = 0;
 let currentSeed = TRACK_SEEDS[currentTrackIndex];
 let currentSeedAlpha = seedToAlpha(currentSeed);
@@ -85,6 +88,14 @@ function ensureTrackCache() {
     });
   }
   refreshBestTimes();
+
+  // Fire-and-forget async fetch for leaderboard preview ranks and top metadata.
+  // Both caches start null (tiles render without rank line); these resolve
+  // within ~500ms and the next render frame picks them up.
+  if (leaderboard.hasSdk()) {
+    leaderboard.fetchPreviewRanks(cachedBestTimes).catch(() => {});
+    leaderboard.fetchTopMetadata().catch(() => {});
+  }
 }
 
 function refreshBestTimes() {
@@ -117,6 +128,10 @@ function initTrack(seed) {
 
   // Ghost system for this seed — persists across sessions
   ghost = new Ghost(seed);
+
+  // Top ghost is loaded asynchronously on tile tap; reset here so a stale
+  // instance from a previous track isn't reused before the fetch resolves.
+  topGhost = null;
 
   // Game state
   gameState = new GameState();
@@ -214,6 +229,23 @@ let pauseButtonBox = null;
 let pauseMenuHitAreas = null;
 let isDraggingSlider = false;
 
+// ── Ghost toggles (persisted) ────────────────────────────────────────────────
+const GHOST_TOGGLES_KEY = 'hotlap:ghost-toggles';
+const ghostToggles = { your: true, top: false };
+(function loadGhostToggles() {
+  try {
+    const raw = localStorage.getItem(GHOST_TOGGLES_KEY);
+    if (raw) {
+      const o = JSON.parse(raw);
+      if (typeof o.your === 'boolean') ghostToggles.your = o.your;
+      if (typeof o.top === 'boolean') ghostToggles.top = o.top;
+    }
+  } catch (_) {}
+})();
+function saveGhostToggles() {
+  try { localStorage.setItem(GHOST_TOGGLES_KEY, JSON.stringify(ghostToggles)); } catch (_) {}
+}
+
 // ── Click handling ───────────────────────────────────────────────────────────
 
 function clientToGame(clientX, clientY) {
@@ -255,6 +287,20 @@ function handleClick(clientX, clientY) {
       hapticTap();
       return;
     }
+    if (hitTest(x, y, pauseMenuHitAreas.yourGhostToggle)) {
+      ghostToggles.your = !ghostToggles.your;
+      saveGhostToggles();
+      playClick();
+      hapticTap();
+      return;
+    }
+    if (!pauseMenuHitAreas.topGhostDisabled && hitTest(x, y, pauseMenuHitAreas.topGhostToggle)) {
+      ghostToggles.top = !ghostToggles.top;
+      saveGhostToggles();
+      playClick();
+      hapticTap();
+      return;
+    }
     if (hitTest(x, y, pauseMenuHitAreas.resumeBtn)) {
       playClick();
       hapticTap();
@@ -265,6 +311,7 @@ function handleClick(clientX, clientY) {
       playClick();
       hapticTap();
       ghost.resetRecording();
+      if (topGhost) topGhost.resetPlayback();
       spawnCar();
       gameState.startCountdown();
       return;
@@ -297,6 +344,7 @@ function handleClick(clientX, clientY) {
       playClick();
       hapticTap();
       ghost.resetRecording();
+      if (topGhost) topGhost.resetPlayback();
       spawnCar();
       gameState.startCountdown();
     } else if (hitTest(x, y, finishHitAreas.nextBox)) {
@@ -304,6 +352,12 @@ function handleClick(clientX, clientY) {
       hapticTap();
       currentTrackIndex = (currentTrackIndex + 1) % TRACK_SEEDS.length;
       initTrack(TRACK_SEEDS[currentTrackIndex]);
+      const nextIdx = currentTrackIndex;
+      leaderboard.fetchTopGhost(nextIdx).then(frames => {
+        if (frames && currentTrackIndex === nextIdx) {
+          topGhost = new TopGhost(frames);
+        }
+      }).catch(() => {});
       gameState.startCountdown();
     } else if (hitTest(x, y, finishHitAreas.menuBox)) {
       playClick();
@@ -314,6 +368,7 @@ function handleClick(clientX, clientY) {
   } else if (gameState.state === 'crashed' && crashHitAreas) {
     if (hitTest(x, y, crashHitAreas.retryBox)) {
       ghost.resetRecording();
+      if (topGhost) topGhost.resetPlayback();
       spawnCar();
       gameState.startCountdown();
     } else if (hitTest(x, y, crashHitAreas.menuBox)) {
@@ -389,6 +444,15 @@ function handleTrackSelectClick(clientX, clientY) {
       hapticTap();
       currentTrackIndex = box.index;
       initTrack(TRACK_SEEDS[currentTrackIndex]);
+      // Lazy top-ghost fetch — resolves during the 3s countdown, usually.
+      const tappedIdx = box.index;
+      leaderboard.fetchTopGhost(tappedIdx).then(frames => {
+        // Only apply if we're still on the same track (the player may have
+        // gone back to track select and picked another one).
+        if (frames && currentTrackIndex === tappedIdx) {
+          topGhost = new TopGhost(frames);
+        }
+      }).catch(() => {});
       gameState.startCountdown();
       return;
     }
@@ -499,6 +563,7 @@ function fixedUpdate() {
 
     // Advance ghost playback
     ghost.advancePlayback();
+    if (topGhost) topGhost.advancePlayback();
 
     // Tick race time
     gameState.tickRace();
@@ -529,12 +594,27 @@ function fixedUpdate() {
     // Keep recording ghost
     ghost.record(car.physX, car.physY, car.physAngle);
     ghost.advancePlayback();
+    if (topGhost) topGhost.advancePlayback();
 
     finishDelayTimer += FIXED_DT;
     if (finishDelayTimer >= FINISH_DELAY) {
       gameState.finish(finishPreviousBest);
       const isNew = ghost.saveIfBest(gameState.raceTime);
       gameState.isNewRecord = isNew;
+
+      // Leaderboard: submit if this is a new PB, and fetch the finish panel.
+      // Both are fire-and-forget — the finish screen renders immediately
+      // and the panel populates async.
+      leaderboard.clearFinishPanel();
+      if (isNew) {
+        leaderboard.submitIfBest(
+          currentTrackIndex,
+          gameState.raceTime,
+          ghost.recording, // the just-completed run's raw frames
+          { styleIndex: carConfig.styleIndex, hue: carConfig.hue }
+        ).catch(() => {});
+      }
+      leaderboard.fetchFinishPanel(currentTrackIndex).catch(() => {});
     }
   }
   // title, finished, crashed: no physics
@@ -571,11 +651,25 @@ function render() {
   // Skid marks (on track surface, before cars)
   skidmarks.draw(ctx);
 
-  // Ghost car (draw behind player)
+  // Ghost cars (draw behind player). Own ghost uses the player's chosen style,
+  // top ghost uses the WR holder's style from leaderboard metadata.
   if (state === 'racing' || state === 'countdown' || state === 'finishing' || state === 'paused') {
-    const ghostFrame = ghost.getGhostFrame();
-    if (ghostFrame) {
-      drawStyledCar(ctx, ghostFrame.x, ghostFrame.y, ghostFrame.angle, carConfig.styleIndex, carConfig.hue + 180, GHOST_ALPHA);
+    if (ghostToggles.your) {
+      const ghostFrame = ghost.getGhostFrame();
+      if (ghostFrame) {
+        drawStyledCar(ctx, ghostFrame.x, ghostFrame.y, ghostFrame.angle, carConfig.styleIndex, carConfig.hue + 180, GHOST_ALPHA);
+      }
+    }
+    if (ghostToggles.top && topGhost) {
+      const tgFrame = topGhost.getFrame();
+      if (tgFrame) {
+        // Pull WR holder's car style/hue from cached metadata
+        const tm = leaderboard.getCachedTopMetadata();
+        const meta = (tm && tm[currentTrackIndex] && tm[currentTrackIndex].metadata) || {};
+        const style = typeof meta.styleIndex === 'number' ? meta.styleIndex : carConfig.styleIndex;
+        const hue = typeof meta.hue === 'number' ? meta.hue : (carConfig.hue + 60);
+        drawStyledCar(ctx, tgFrame.x, tgFrame.y, tgFrame.angle, style, hue, GHOST_ALPHA);
+      }
     }
   }
 
@@ -626,7 +720,7 @@ function render() {
   } else if (state === 'carselect') {
     carSelectHitAreas = drawCarSelect(ctx, carConfig.styleIndex, carConfig.hue);
   } else if (state === 'trackselect') {
-    trackSelectHitAreas = drawTrackSelect(ctx, cachedTrackPaths, currentTrackIndex, cachedBestTimes);
+    trackSelectHitAreas = drawTrackSelect(ctx, cachedTrackPaths, currentTrackIndex, cachedBestTimes, leaderboard.getCachedPreviewRanks());
   } else if (state === 'countdown') {
     drawCountdown(ctx, gameState.countdownNumber);
   } else if (state === 'racing' && gameState.raceTime < 500) {
@@ -634,16 +728,40 @@ function render() {
   } else if (state === 'finished') {
     const bestTimeSec = ghost.bestTime !== null ? ghost.bestTime / 1000 : null;
     drawHUD(ctx, gameState.raceTime / 1000, bestTimeSec, 0, currentSeedAlpha);
+    const panelData = leaderboard.getCachedFinishPanel();
+    const previewRanks = leaderboard.getCachedPreviewRanks();
+    const sdkPresent = leaderboard.hasSdk();
     finishHitAreas = drawFinishScreen(
       ctx,
       gameState.raceTime / 1000,
       gameState.finishDelta !== null ? gameState.finishDelta / 1000 : null,
-      gameState.isNewRecord
+      gameState.isNewRecord,
+      {
+        panelData,
+        // Only show "loading" if the SDK is actually there and a fetch is in flight.
+        // Without SDK (localhost dev, or iframe without injection), flip straight to error.
+        panelLoading: sdkPresent && panelData === null,
+        panelError: !sdkPresent,
+        signedIn: leaderboard.isSignedIn(),
+        myPreviewRank: previewRanks ? previewRanks[currentTrackIndex] : null,
+        currentTrackIndex,
+      }
     );
   } else if (state === 'crashed') {
     crashHitAreas = drawCrashScreen(ctx);
   } else if (state === 'paused') {
-    pauseMenuHitAreas = drawPauseMenu(ctx, getSfxEnabled(), getHapticsEnabled());
+    // Determine top ghost state for the current track
+    let topGhostState = 'none';
+    if (topGhost && topGhost.hasFrames()) {
+      topGhostState = 'ready';
+    } else {
+      const tm = leaderboard.getCachedTopMetadata();
+      const entry = tm ? tm[currentTrackIndex] : null;
+      if (entry && entry.hasAttachment) {
+        topGhostState = 'loading'; // metadata says there's a top, but we haven't loaded it yet
+      }
+    }
+    pauseMenuHitAreas = drawPauseMenu(ctx, getSfxEnabled(), getHapticsEnabled(), ghostToggles, topGhostState);
   }
 }
 

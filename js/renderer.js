@@ -4,7 +4,7 @@ import {
   GAME_W, GAME_H,
 } from './constants.js';
 import { DIR_VEC } from './track.js';
-import { CAR_STYLES, hueToColors } from './car-styles.js';
+import { CAR_STYLES, hueToColors, drawStyledCar } from './car-styles.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -461,7 +461,7 @@ export function drawTitleScreen(ctx, seed, bodyColor, dt) {
 
   ctx.fillStyle = '#666';
   ctx.font = '24px sans-serif';
-  ctx.fillText('v0.31', cx, GAME_H * 0.92);
+  ctx.fillText('v0.32', cx, GAME_H * 0.92);
 
   ctx.restore();
 
@@ -532,71 +532,266 @@ export function drawCountdown(ctx, number) {
   ctx.restore();
 }
 
-export function drawFinishScreen(ctx, raceTime, delta, isNewRecord) {
-  ctx.save();
-  ctx.fillStyle = 'rgba(0,0,0,0.75)';
-  ctx.fillRect(0, 0, GAME_W, GAME_H);
+/**
+ * Draw one row of the finish-screen leaderboard panel.
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {{rank:number, metadata:object, value:number, isMe?:boolean}} entry
+ * @param {{x:number, y:number, w:number, h:number}} rect
+ * @param {{highlighted:boolean, isTopRank:boolean}} opts
+ */
+function drawLeaderboardRow(ctx, entry, rect, opts) {
+  const { x, y, w, h } = rect;
+  const highlighted = !!(opts && opts.highlighted);
+  const isTopRank = !!(opts && opts.isTopRank);
 
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
-  if (isNewRecord) {
-    ctx.fillStyle = '#f0c040';
-    ctx.font = 'bold 80px sans-serif';
-    ctx.fillText('NEW RECORD!', GAME_W / 2, GAME_H * 0.30);
-  } else {
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 80px sans-serif';
-    ctx.fillText('FINISH', GAME_W / 2, GAME_H * 0.30);
+  if (highlighted) {
+    ctx.fillStyle = 'rgba(255,255,255,0.14)';
+    ctx.beginPath(); ctx.roundRect(x, y, w, h, 8); ctx.fill();
   }
 
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 110px monospace';
-  ctx.fillText(formatTime(raceTime), GAME_W / 2, GAME_H * 0.44);
+  // Rank number (left column)
+  ctx.fillStyle = highlighted ? '#fff' : '#aaa';
+  ctx.font = 'bold 28px sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(entry.rank).padStart(2, '0'), x + 70, y + h / 2);
 
+  // Tiny car sprite (40x40 visual block, rendered at scale)
+  const carX = x + 130;
+  const carY = y + h / 2;
+  const meta = entry.metadata || {};
+  const styleIndex = typeof meta.styleIndex === 'number' ? meta.styleIndex : 0;
+  const hue = typeof meta.hue === 'number' ? meta.hue : 0;
+  ctx.save();
+  ctx.translate(carX, carY);
+  ctx.scale(0.32, 0.32);
+  drawStyledCar(ctx, 0, 0, 0, styleIndex, hue, 1);
+  ctx.restore();
+
+  // Name (middle)
+  const name = (meta.name || 'player').toString().substring(0, 14);
+  ctx.fillStyle = highlighted ? '#fff' : '#ccc';
+  ctx.font = '30px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(name, x + 170, y + h / 2);
+
+  // Time (right)
+  ctx.fillStyle = isTopRank ? '#f0c040' : (highlighted ? '#fff' : '#ccc');
+  ctx.font = 'bold 30px monospace';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(formatTime((entry.value || 0) / 1000), x + w - 20, y + h / 2);
+}
+
+/**
+ * Draw the finish screen with a leaderboard panel.
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {number} raceTime - in seconds
+ * @param {number|null} delta - in seconds, or null
+ * @param {boolean} isNewRecord
+ * @param {{
+ *   panelData: {top:Array, nearby:Array, total:number, hasAttachment:boolean}|null,
+ *   panelLoading: boolean,
+ *   panelError: boolean,
+ *   signedIn: boolean,
+ *   myPreviewRank: {rank:number, total:number}|null,
+ *   currentTrackIndex: number,
+ * }} lb
+ */
+export function drawFinishScreen(ctx, raceTime, delta, isNewRecord, lb) {
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.80)';
+  ctx.fillRect(0, 0, GAME_W, GAME_H);
+
+  const cx = GAME_W / 2;
+
+  // Banner
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  if (isNewRecord) {
+    ctx.fillStyle = '#f0c040';
+    ctx.font = 'bold 70px sans-serif';
+    ctx.fillText('NEW RECORD!', cx, 130);
+  } else {
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 70px sans-serif';
+    ctx.fillText('FINISH', cx, 130);
+  }
+
+  // Big time
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 90px monospace';
+  ctx.fillText(formatTime(raceTime), cx, 260);
+
+  // Delta pill
   if (delta !== null && delta !== undefined) {
     const sign = delta < 0 ? '-' : '+';
     ctx.fillStyle = delta < 0 ? '#4cff72' : '#ff5555';
-    ctx.font = 'bold 64px monospace';
-    ctx.fillText(`${sign}${formatTime(Math.abs(delta))}`, GAME_W / 2, GAME_H * 0.55);
+    ctx.font = 'bold 32px monospace';
+    ctx.fillText(sign + formatTime(Math.abs(delta)), cx, 350);
   }
 
-  // RETRY button
-  const cx = GAME_W / 2;
-  const retryY = GAME_H * 0.66;
+  // ── Leaderboard panel ─────────────────────────────────────────────────────
+  const panelX = 60, panelY = 400, panelW = GAME_W - 120, panelH = 1000;
+  ctx.fillStyle = 'rgba(255,255,255,0.05)';
+  ctx.beginPath(); ctx.roundRect(panelX, panelY, panelW, panelH, 16); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.lineWidth = 2; ctx.stroke();
+
+  const panelOpts = lb || { panelData: null, panelLoading: true, panelError: false, signedIn: false, myPreviewRank: null, currentTrackIndex: 0 };
+
+  if (panelOpts.panelLoading) {
+    // Loading state
+    ctx.fillStyle = '#888';
+    ctx.font = 'bold 32px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('LOADING LEADERBOARD…', panelX + panelW / 2, panelY + panelH / 2);
+  } else if (panelOpts.panelError || !panelOpts.panelData) {
+    // Error state
+    ctx.fillStyle = '#666';
+    ctx.font = 'bold 32px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('LEADERBOARD UNAVAILABLE', panelX + panelW / 2, panelY + panelH / 2);
+  } else {
+    // Populated state
+    const data = panelOpts.panelData;
+
+    // Header row: "TRACK NN LEADERBOARD" (left) + "RANK X/Y" (right, signed-in only)
+    const headerY = panelY + 40;
+    ctx.fillStyle = '#888';
+    ctx.font = 'bold 26px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    const trackLabel = 'TRACK ' + String(panelOpts.currentTrackIndex + 1).padStart(2, '0') + ' LEADERBOARD';
+    ctx.fillText(trackLabel, panelX + 30, headerY);
+
+    if (panelOpts.signedIn && data.nearby && data.nearby.length > 0) {
+      const myEntry = data.nearby.find(e => e.isMe);
+      if (myEntry) {
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 30px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText('RANK ' + myEntry.rank + ' / ' + data.total, panelX + panelW - 30, headerY);
+      }
+    } else if (panelOpts.myPreviewRank) {
+      ctx.fillStyle = '#888';
+      ctx.font = 'bold 26px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText('#' + panelOpts.myPreviewRank.rank + ' / ' + panelOpts.myPreviewRank.total, panelX + panelW - 30, headerY);
+    }
+
+    // Top N entries
+    const rowH = 80;
+    const topTop = panelY + 100;
+    for (let i = 0; i < Math.min(data.top.length, 3); i++) {
+      const entry = data.top[i];
+      drawLeaderboardRow(
+        ctx,
+        entry,
+        { x: panelX + 20, y: topTop + i * rowH, w: panelW - 40, h: rowH - 8 },
+        { highlighted: !!entry.isMe, isTopRank: entry.rank === 1 }
+      );
+    }
+
+    // Dashed divider
+    const dividerY = topTop + 3 * rowH + 10;
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([8, 8]);
+    ctx.beginPath();
+    ctx.moveTo(panelX + 40, dividerY);
+    ctx.lineTo(panelX + panelW - 40, dividerY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Nearby / call-out
+    const nearbyTop = dividerY + 30;
+    if (panelOpts.signedIn) {
+      // Signed-in: nearby rows from getLeaderboardAroundMe
+      // Filter out any entries that overlap with the top 3 already shown
+      const topIds = new Set(data.top.slice(0, 3).map(e => e.user_id));
+      const filteredNearby = (data.nearby || []).filter(e => !topIds.has(e.user_id));
+      for (let i = 0; i < Math.min(filteredNearby.length, 3); i++) {
+        const entry = filteredNearby[i];
+        drawLeaderboardRow(
+          ctx,
+          entry,
+          { x: panelX + 20, y: nearbyTop + i * rowH, w: panelW - 40, h: rowH - 8 },
+          { highlighted: !!entry.isMe, isTopRank: entry.rank === 1 }
+        );
+      }
+    } else {
+      // Signed-out call-out card
+      const cardH = 160;
+      ctx.fillStyle = 'rgba(240,192,64,0.08)';
+      ctx.beginPath(); ctx.roundRect(panelX + 20, nearbyTop, panelW - 40, cardH, 12); ctx.fill();
+      ctx.strokeStyle = 'rgba(240,192,64,0.35)';
+      ctx.lineWidth = 2; ctx.stroke();
+
+      ctx.fillStyle = '#f0c040';
+      ctx.font = 'bold 32px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      if (panelOpts.myPreviewRank) {
+        ctx.fillText('Your time would rank #' + panelOpts.myPreviewRank.rank + ' / ' + panelOpts.myPreviewRank.total, panelX + panelW / 2, nearbyTop + 50);
+      } else {
+        ctx.fillText('Leaderboard active', panelX + panelW / 2, nearbyTop + 50);
+      }
+      ctx.fillStyle = '#ccc';
+      ctx.font = '22px sans-serif';
+      ctx.fillText('Sign in on play.nitzan.games to save your ghost', panelX + panelW / 2, nearbyTop + 100);
+      ctx.fillText('and compete', panelX + panelW / 2, nearbyTop + 128);
+    }
+
+    // Footer — top ghost availability
+    const footerY = panelY + panelH - 30;
+    if (data.hasAttachment) {
+      ctx.fillStyle = '#666';
+      ctx.font = '20px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('TOP GHOST AVAILABLE', panelX + panelW / 2, footerY);
+    }
+  }
+
+  // ── Buttons ───────────────────────────────────────────────────────────────
+  const retryY = 1440;
   ctx.fillStyle = 'rgba(255,255,255,0.15)';
-  ctx.beginPath(); ctx.roundRect(cx - 200, retryY, 400, 80, 16); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(cx - 300, retryY, 600, 110, 18); ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,0.4)';
   ctx.lineWidth = 2; ctx.stroke();
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 44px sans-serif';
-  ctx.fillText('RETRY', cx, retryY + 42);
+  ctx.font = 'bold 50px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('RETRY', cx, retryY + 55);
 
-  // NEXT TRACK button
-  const nextY = GAME_H * 0.74;
+  const nextY = 1580;
   ctx.fillStyle = 'rgba(255,255,255,0.12)';
-  ctx.beginPath(); ctx.roundRect(cx - 200, nextY, 400, 70, 16); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(cx - 300, nextY, 600, 95, 18); ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,0.35)';
   ctx.lineWidth = 2; ctx.stroke();
   ctx.fillStyle = '#ccc';
-  ctx.font = '36px sans-serif';
-  ctx.fillText('NEXT TRACK', cx, nextY + 37);
+  ctx.font = '42px sans-serif';
+  ctx.fillText('NEXT TRACK', cx, nextY + 48);
 
-  // TRACKS button (back to track select)
-  const menuY = GAME_H * 0.82;
+  const menuY = 1710;
   ctx.fillStyle = 'rgba(255,255,255,0.06)';
-  ctx.beginPath(); ctx.roundRect(cx - 200, menuY, 400, 60, 16); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(cx - 300, menuY, 600, 85, 18); ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,0.2)';
   ctx.lineWidth = 1; ctx.stroke();
   ctx.fillStyle = '#888';
-  ctx.font = '32px sans-serif';
-  ctx.fillText('TRACKS', cx, menuY + 33);
+  ctx.font = '36px sans-serif';
+  ctx.fillText('TRACKS', cx, menuY + 43);
 
   ctx.restore();
   return {
-    retryBox: { x: cx - 200, y: retryY, w: 400, h: 80 },
-    nextBox: { x: cx - 200, y: nextY, w: 400, h: 70 },
-    menuBox: { x: cx - 200, y: menuY, w: 400, h: 60 },
+    retryBox: { x: cx - 300, y: retryY, w: 600, h: 110 },
+    nextBox: { x: cx - 300, y: nextY, w: 600, h: 95 },
+    menuBox: { x: cx - 300, y: menuY, w: 600, h: 85 },
   };
 }
 
@@ -1001,7 +1196,7 @@ export function drawPauseButton(ctx) {
 }
 
 /** Draw the pause menu overlay. Returns hit areas for all interactive elements. */
-export function drawPauseMenu(ctx, sfxOn, hapticsOn) {
+export function drawPauseMenu(ctx, sfxOn, hapticsOn, ghostToggles, topGhostState) {
   // Dim background
   ctx.save();
   ctx.fillStyle = 'rgba(0,0,0,0.7)';
@@ -1055,33 +1250,54 @@ export function drawPauseMenu(ctx, sfxOn, hapticsOn) {
     return { x: tx, y: ty, w: tw, h: th };
   }
 
-  const sfxToggle = drawToggle('SOUND', sfxOn, panelY + 260);
-  const hapticsToggle = drawToggle('HAPTICS', hapticsOn, panelY + 380);
+  const sfxToggle = drawToggle('SOUND', sfxOn, panelY + 200);
+  const hapticsToggle = drawToggle('HAPTICS', hapticsOn, panelY + 290);
+
+  // Ghost toggles
+  const gt = ghostToggles || { your: true, top: false };
+  const yourGhostToggle = drawToggle('YOUR GHOST', gt.your, panelY + 380);
+
+  // Top ghost toggle is disabled when state is 'none' or 'loading'
+  const topOn = gt.top && topGhostState === 'ready';
+  const topLabel = topGhostState === 'loading' ? 'TOP GHOST (loading…)'
+                 : topGhostState === 'none'    ? 'TOP GHOST (none)'
+                 : 'TOP GHOST';
+  const topDisabled = topGhostState !== 'ready';
+  const topGhostToggle = drawToggle(topLabel, topOn, panelY + 470);
+  if (topDisabled) {
+    // Overlay a dim mask to indicate disabled
+    ctx.fillStyle = 'rgba(26,26,26,0.5)';
+    ctx.fillRect(topGhostToggle.x - 300, topGhostToggle.y - 20, topGhostToggle.w + 320, topGhostToggle.h + 40);
+  }
 
   // Buttons
   function drawBtn(label, color, y) {
     const bw = panelW - 160;
     const bx = panelX + 80;
-    const bh = 110;
+    const bh = 100;
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.roundRect(bx, y, bw, bh, 18);
     ctx.fill();
     ctx.fillStyle = '#fff';
-    ctx.font = 'bold 56px sans-serif';
+    ctx.font = 'bold 54px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(label, GAME_W / 2, y + bh / 2);
     return { x: bx, y, w: bw, h: bh };
   }
 
-  const resumeBtn = drawBtn('RESUME', '#2e8a3a', panelY + 540);
-  const retryBtn = drawBtn('RETRY', '#444', panelY + 690);
-  const menuBtn = drawBtn('MAIN MENU', '#444', panelY + 840);
+  const resumeBtn = drawBtn('RESUME', '#2e8a3a', panelY + 600);
+  const retryBtn = drawBtn('RETRY', '#444', panelY + 730);
+  const menuBtn = drawBtn('MAIN MENU', '#444', panelY + 860);
 
   ctx.restore();
 
-  return { sfxToggle, hapticsToggle, resumeBtn, retryBtn, menuBtn };
+  return {
+    sfxToggle, hapticsToggle,
+    yourGhostToggle, topGhostToggle, topGhostDisabled: topDisabled,
+    resumeBtn, retryBtn, menuBtn,
+  };
 }
 
 // ── Track selection screen ──────────────────────────────────────────────────
@@ -1145,7 +1361,7 @@ function drawMinimapIntoRect(ctx, centerLine, startAngle, x, y, w, h) {
  * @param {Array<number|null>} bestTimes - best time in ms per track, or null
  * @returns {{ tileBoxes: {x,y,w,h,index}[], backBox: {x,y,w,h} }} hit areas
  */
-export function drawTrackSelect(ctx, trackPaths, currentIndex, bestTimes) {
+export function drawTrackSelect(ctx, trackPaths, currentIndex, bestTimes, previewRanks) {
   const cx = GAME_W / 2;
 
   // Dark overlay
@@ -1202,8 +1418,8 @@ export function drawTrackSelect(ctx, trackPaths, currentIndex, bestTimes) {
     }
     ctx.beginPath(); ctx.roundRect(tx, ty, tileSize, tileSize, 12); ctx.stroke();
 
-    // Minimap (top ~70% of tile)
-    const mapH = Math.floor(tileSize * 0.68);
+    // Minimap (top ~60% of tile to leave room for time + rank)
+    const mapH = Math.floor(tileSize * 0.60);
     const path = trackPaths[i];
     drawMinimapIntoRect(ctx, path.centerLine, path.startAngle, tx, ty, tileSize, mapH);
 
@@ -1215,7 +1431,7 @@ export function drawTrackSelect(ctx, trackPaths, currentIndex, bestTimes) {
     ctx.textBaseline = 'top';
     ctx.fillText(label, tx + 12, ty + 10);
 
-    // Best time (bottom of tile)
+    // Best time (above rank line)
     const bt = bestTimes && bestTimes[i];
     const timeText = bt !== null && bt !== undefined
       ? formatTime(bt / 1000)
@@ -1224,7 +1440,17 @@ export function drawTrackSelect(ctx, trackPaths, currentIndex, bestTimes) {
     ctx.font = 'bold 28px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(timeText, tx + tileSize / 2, ty + tileSize - 14);
+    ctx.fillText(timeText, tx + tileSize / 2, ty + tileSize - 38);
+
+    // Rank preview line (only when player has a PB AND preview succeeded AND
+    // the board has at least one entry)
+    const pr = previewRanks && previewRanks[i];
+    if (bt != null && pr && pr.total > 0) {
+      ctx.fillStyle = pr.rank === 1 ? '#f0c040' : '#888';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('#' + pr.rank + ' / ' + pr.total, tx + tileSize / 2, ty + tileSize - 14);
+    }
 
     tileBoxes.push({ x: tx, y: ty, w: tileSize, h: tileSize, index: i });
   }

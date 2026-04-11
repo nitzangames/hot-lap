@@ -44,3 +44,8 @@ export const TRACK_SEEDS = [
   1357795990, 1156852666, 2730074476, 3217832626, 3885142516,
    139478688, 2870132872, 3744827128,  611838112, 1436850013,
 ];
+
+// Leaderboard
+export const GHOST_MAX_LAP_SECONDS = 90;  // laps longer than this submit the score but not the ghost attachment
+export const LEADERBOARD_TOP_COUNT = 3;   // number of top entries shown on the finish panel
+export const LEADERBOARD_NEARBY_COUNT = 1; // number of entries shown above and below the player's row
