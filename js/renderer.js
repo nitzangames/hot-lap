@@ -558,7 +558,7 @@ export function drawFinishScreen(ctx, raceTime, delta, isNewRecord) {
   ctx.font = '36px sans-serif';
   ctx.fillText('NEXT TRACK', cx, nextY + 37);
 
-  // MAIN MENU button
+  // TRACKS button (back to track select)
   const menuY = GAME_H * 0.82;
   ctx.fillStyle = 'rgba(255,255,255,0.06)';
   ctx.beginPath(); ctx.roundRect(cx - 200, menuY, 400, 60, 16); ctx.fill();
@@ -566,7 +566,7 @@ export function drawFinishScreen(ctx, raceTime, delta, isNewRecord) {
   ctx.lineWidth = 1; ctx.stroke();
   ctx.fillStyle = '#888';
   ctx.font = '32px sans-serif';
-  ctx.fillText('MAIN MENU', cx, menuY + 33);
+  ctx.fillText('TRACKS', cx, menuY + 33);
 
   ctx.restore();
   return {

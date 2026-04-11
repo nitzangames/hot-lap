@@ -294,16 +294,22 @@ function handleClick(clientX, clientY) {
     }
   } else if (gameState.state === 'finished' && finishHitAreas) {
     if (hitTest(x, y, finishHitAreas.retryBox)) {
+      playClick();
+      hapticTap();
       ghost.resetRecording();
       spawnCar();
       gameState.startCountdown();
     } else if (hitTest(x, y, finishHitAreas.nextBox)) {
-      initTrack(Date.now());
+      playClick();
+      hapticTap();
+      currentTrackIndex = (currentTrackIndex + 1) % TRACK_SEEDS.length;
+      initTrack(TRACK_SEEDS[currentTrackIndex]);
       gameState.startCountdown();
     } else if (hitTest(x, y, finishHitAreas.menuBox)) {
-      ghost.resetRecording();
-      spawnCar();
-      gameState.reset();
+      playClick();
+      hapticTap();
+      ensureTrackCache();
+      gameState.state = 'trackselect';
     }
   } else if (gameState.state === 'crashed' && crashHitAreas) {
     if (hitTest(x, y, crashHitAreas.retryBox)) {
