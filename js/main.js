@@ -714,11 +714,21 @@ function render() {
   } else if (state === 'finished') {
     const bestTimeSec = ghost.bestTime !== null ? ghost.bestTime / 1000 : null;
     drawHUD(ctx, gameState.raceTime / 1000, bestTimeSec, 0, currentSeedAlpha);
+    const panelData = leaderboard.getCachedFinishPanel();
+    const previewRanks = leaderboard.getCachedPreviewRanks();
     finishHitAreas = drawFinishScreen(
       ctx,
       gameState.raceTime / 1000,
       gameState.finishDelta !== null ? gameState.finishDelta / 1000 : null,
-      gameState.isNewRecord
+      gameState.isNewRecord,
+      {
+        panelData,
+        panelLoading: panelData === null,
+        panelError: false, // loading state is indistinguishable from fetch-failed-returning-null; acceptable for v1
+        signedIn: leaderboard.isSignedIn(),
+        myPreviewRank: previewRanks ? previewRanks[currentTrackIndex] : null,
+        currentTrackIndex,
+      }
     );
   } else if (state === 'crashed') {
     crashHitAreas = drawCrashScreen(ctx);
