@@ -479,15 +479,19 @@ function handleTrackSelectClick(clientX, clientY) {
   }
 }
 
-// Track pointer down position to distinguish taps from drags
+// Track pointer down position and the game state at pointerdown time,
+// so a finger that goes down during racing and lifts after the race has
+// finished isn't interpreted as a tap on the finish-screen buttons.
 let pointerDownX = 0;
 let pointerDownY = 0;
+let pointerDownState = null;
 const TAP_THRESHOLD = 15; // max pixels moved to count as a tap
 
 canvas.addEventListener('pointerdown', (e) => {
   initAudio(); // browsers require user gesture to start AudioContext
   pointerDownX = e.clientX;
   pointerDownY = e.clientY;
+  pointerDownState = gameState.state;
   if (gameState.state === 'carselect') {
     handleCarSelectClick(e.clientX, e.clientY);
   }
@@ -502,8 +506,17 @@ canvas.addEventListener('pointermove', (e) => {
 canvas.addEventListener('pointerup', (e) => {
   if (gameState.state === 'carselect') {
     handleCarSelectRelease();
+    pointerDownState = null;
     return;
   }
+  // If the state changed between pointerdown and pointerup (e.g. the race
+  // finished while the player's finger was still down from steering), drop
+  // the event — it was never meant as a tap on the new screen's UI.
+  if (pointerDownState !== null && pointerDownState !== gameState.state) {
+    pointerDownState = null;
+    return;
+  }
+  pointerDownState = null;
   const dx = e.clientX - pointerDownX;
   const dy = e.clientY - pointerDownY;
   if (Math.abs(dx) < TAP_THRESHOLD && Math.abs(dy) < TAP_THRESHOLD) {
