@@ -1,0 +1,222 @@
+<h2>Hot Lap — Thumbnail v2</h2>
+<p class="subtitle">Racing Action with straight section below curve, no subtitle</p>
+
+<style>
+  .preview { display: flex; justify-content: center; margin-top: 24px; }
+  .preview canvas { border-radius: 12px; border: 2px solid #333; max-width: 100%; }
+</style>
+
+<div class="preview">
+  <canvas id="thumb" width="1024" height="1024"></canvas>
+</div>
+
+<script>
+const S = 1024;
+const c = document.getElementById('thumb');
+const ctx = c.getContext('2d');
+
+function drawF1Car(ctx, x, y, angle, scale, bodyColor, wingColor) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  ctx.scale(scale, scale);
+  const w = 64, h = 141;
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.beginPath(); ctx.ellipse(3, 3, w*0.5, h*0.38, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(-w*0.5, h*0.08, w*0.17, h*0.24);
+  ctx.fillRect(w*0.33, h*0.08, w*0.17, h*0.24);
+  ctx.fillRect(-w*0.48, -h*0.3, w*0.14, h*0.18);
+  ctx.fillRect(w*0.34, -h*0.3, w*0.14, h*0.18);
+  ctx.fillStyle = wingColor;
+  ctx.fillRect(-w*0.6, h*0.34, w*1.2, h*0.05);
+  ctx.fillRect(-w*0.62, h*0.26, w*0.06, h*0.15);
+  ctx.fillRect(w*0.56, h*0.26, w*0.06, h*0.15);
+  ctx.fillStyle = bodyColor;
+  ctx.beginPath();
+  ctx.moveTo(0, -h*0.44); ctx.lineTo(w*0.18, -h*0.2); ctx.lineTo(w*0.24, 0);
+  ctx.lineTo(w*0.28, h*0.25); ctx.lineTo(-w*0.28, h*0.25); ctx.lineTo(-w*0.24, 0);
+  ctx.lineTo(-w*0.18, -h*0.2); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#111';
+  ctx.beginPath(); ctx.ellipse(0, -h*0.08, w*0.13, h*0.1, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = wingColor;
+  ctx.fillRect(-w*0.34, -h*0.02, w*0.12, h*0.2);
+  ctx.fillRect(w*0.22, -h*0.02, w*0.12, h*0.2);
+  ctx.fillStyle = wingColor;
+  ctx.fillRect(-w*0.52, -h*0.36, w*1.04, h*0.04);
+  ctx.fillStyle = bodyColor;
+  ctx.beginPath();
+  ctx.moveTo(-w*0.08, -h*0.36); ctx.lineTo(w*0.08, -h*0.36);
+  ctx.lineTo(w*0.04, -h*0.46); ctx.lineTo(-w*0.04, -h*0.46); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+function drawCurbs(ctx, points, segLen) {
+  for (let i = 0; i < points.length - 1; i++) {
+    ctx.strokeStyle = i % 2 === 0 ? '#cc0000' : '#fff';
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.moveTo(points[i][0], points[i][1]);
+    ctx.lineTo(points[i+1][0], points[i+1][1]);
+    ctx.stroke();
+  }
+}
+
+// Background - dark asphalt gradient
+const bg = ctx.createRadialGradient(S*0.35, S*0.45, 50, S*0.5, S*0.5, S*0.75);
+bg.addColorStop(0, '#3a3a3a');
+bg.addColorStop(1, '#1a1a1a');
+ctx.fillStyle = bg;
+ctx.fillRect(0, 0, S, S);
+
+// Track parameters
+const trackW = 160;
+const curveCenter = { x: S * 1.05, y: S * 0.95 };
+const curveRadius = S * 0.7;
+const curveStart = Math.PI * 1.12;
+const curveEnd = Math.PI * 1.52;
+
+// Where the curve ends - calculate the straight start point
+const straightStartX = curveCenter.x + Math.cos(curveEnd) * curveRadius;
+const straightStartY = curveCenter.y + Math.sin(curveEnd) * curveRadius;
+const straightAngle = curveEnd + Math.PI / 2; // tangent direction
+
+// Grass areas - left/top triangle
+ctx.fillStyle = '#1e6b1e';
+ctx.beginPath();
+ctx.moveTo(0, 0); ctx.lineTo(S*0.2, 0); ctx.lineTo(0, S*0.55); ctx.closePath(); ctx.fill();
+
+// Grass area - bottom right
+ctx.beginPath();
+ctx.moveTo(S, S*0.45); ctx.lineTo(S, S); ctx.lineTo(S*0.5, S); ctx.closePath(); ctx.fill();
+
+// Grass inside curve
+ctx.fillStyle = '#1e6b1e';
+ctx.beginPath();
+ctx.arc(curveCenter.x, curveCenter.y, curveRadius - trackW/2 - 8, curveStart, curveEnd);
+ctx.lineTo(S, S); ctx.lineTo(S, S*0.3);
+ctx.closePath(); ctx.fill();
+
+// Grass outside curve
+ctx.fillStyle = '#1e6b1e';
+ctx.beginPath();
+ctx.arc(curveCenter.x, curveCenter.y, curveRadius + trackW/2 + 8, curveStart, curveEnd);
+ctx.lineTo(-S*0.3, S*0.2);
+ctx.closePath(); ctx.fill();
+
+// ── Straight section going down-left from curve end ──
+// The straight exits the curve at the top and goes upward/left
+const straightEndX = straightStartX + Math.cos(straightAngle) * S * 0.6;
+const straightEndY = straightStartY + Math.sin(straightAngle) * S * 0.6;
+
+// Grass along straight
+const perpX = Math.cos(straightAngle + Math.PI/2);
+const perpY = Math.sin(straightAngle + Math.PI/2);
+
+ctx.fillStyle = '#1e6b1e';
+ctx.beginPath();
+ctx.moveTo(straightStartX + perpX*(trackW/2+8), straightStartY + perpY*(trackW/2+8));
+ctx.lineTo(straightEndX + perpX*(trackW/2+8), straightEndY + perpY*(trackW/2+8));
+ctx.lineTo(straightEndX + perpX*(trackW/2+60), straightEndY + perpY*(trackW/2+60));
+ctx.lineTo(straightStartX + perpX*(trackW/2+60), straightStartY + perpY*(trackW/2+60));
+ctx.closePath(); ctx.fill();
+
+ctx.beginPath();
+ctx.moveTo(straightStartX - perpX*(trackW/2+8), straightStartY - perpY*(trackW/2+8));
+ctx.lineTo(straightEndX - perpX*(trackW/2+8), straightEndY - perpY*(trackW/2+8));
+ctx.lineTo(straightEndX - perpX*(trackW/2+200), straightEndY - perpY*(trackW/2+200));
+ctx.lineTo(straightStartX - perpX*(trackW/2+200), straightStartY - perpY*(trackW/2+200));
+ctx.closePath(); ctx.fill();
+
+// Straight track surface
+ctx.strokeStyle = '#444';
+ctx.lineWidth = trackW;
+ctx.lineCap = 'butt';
+ctx.beginPath();
+ctx.moveTo(straightStartX, straightStartY);
+ctx.lineTo(straightEndX, straightEndY);
+ctx.stroke();
+
+// Straight curbs
+const curbCount = 24;
+for (let side = -1; side <= 1; side += 2) {
+  for (let i = 0; i < curbCount; i++) {
+    const t0 = i / curbCount;
+    const t1 = (i + 1) / curbCount;
+    const x0 = straightStartX + (straightEndX - straightStartX) * t0 + perpX * side * trackW/2;
+    const y0 = straightStartY + (straightEndY - straightStartY) * t0 + perpY * side * trackW/2;
+    const x1 = straightStartX + (straightEndX - straightStartX) * t1 + perpX * side * trackW/2;
+    const y1 = straightStartY + (straightEndY - straightStartY) * t1 + perpY * side * trackW/2;
+    ctx.strokeStyle = i % 2 === 0 ? '#cc0000' : '#fff';
+    ctx.lineWidth = 8;
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+  }
+}
+
+// Straight center line
+ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+ctx.lineWidth = 2;
+ctx.setLineDash([16, 16]);
+ctx.beginPath();
+ctx.moveTo(straightStartX, straightStartY);
+ctx.lineTo(straightEndX, straightEndY);
+ctx.stroke();
+ctx.setLineDash([]);
+
+// ── Curved track ──
+// Track surface
+ctx.strokeStyle = '#444';
+ctx.lineWidth = trackW;
+ctx.lineCap = 'butt';
+ctx.beginPath(); ctx.arc(curveCenter.x, curveCenter.y, curveRadius, curveStart, curveEnd); ctx.stroke();
+
+// Center line
+ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+ctx.lineWidth = 2;
+ctx.setLineDash([16, 16]);
+ctx.beginPath(); ctx.arc(curveCenter.x, curveCenter.y, curveRadius, curveStart, curveEnd); ctx.stroke();
+ctx.setLineDash([]);
+
+// Curbs on curve
+const curbSegments = 28;
+for (let side = -1; side <= 1; side += 2) {
+  const cr = curveRadius + side * trackW/2;
+  const step = (curveEnd - curveStart) / curbSegments;
+  for (let i = 0; i < curbSegments; i++) {
+    ctx.strokeStyle = i % 2 === 0 ? '#cc0000' : '#fff';
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.arc(curveCenter.x, curveCenter.y, cr, curveStart + i * step, curveStart + (i+1) * step);
+    ctx.stroke();
+  }
+}
+
+// Speed lines
+ctx.save();
+ctx.globalAlpha = 0.12;
+for (let i = 0; i < 15; i++) {
+  const lx = S*0.15 + Math.random()*S*0.55;
+  const ly = S*0.05 + Math.random()*S*0.75;
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1.5 + Math.random()*2.5;
+  ctx.beginPath();
+  ctx.moveTo(lx, ly);
+  ctx.lineTo(lx + 35 + Math.random()*50, ly + 55 + Math.random()*35);
+  ctx.stroke();
+}
+ctx.restore();
+
+// Car on the curve
+drawF1Car(ctx, S*0.38, S*0.48, -0.4, 2.5, '#e22', '#fff');
+
+// Title - HOT LAP
+ctx.save();
+ctx.textAlign = 'center';
+ctx.textBaseline = 'middle';
+ctx.font = '900 110px "Arial Black", Arial, sans-serif';
+ctx.fillStyle = 'rgba(0,0,0,0.5)';
+ctx.fillText('HOT LAP', S*0.5+4, S*0.13+4);
+ctx.fillStyle = '#fff';
+ctx.fillText('HOT LAP', S*0.5, S*0.13);
+ctx.restore();
+</script>

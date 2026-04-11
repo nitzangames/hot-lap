@@ -1,0 +1,420 @@
+<h2>Hot Lap — Thumbnail Options</h2>
+<p class="subtitle">1024×1024, click to select your favorite</p>
+
+<style>
+  .thumb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px; }
+  .thumb-card { cursor: pointer; border-radius: 12px; overflow: hidden; border: 3px solid transparent; transition: border-color 0.2s; }
+  .thumb-card.selected, .thumb-card:hover { border-color: #4af; }
+  .thumb-canvas { width: 100%; aspect-ratio: 1; display: block; }
+  .thumb-label { padding: 12px; text-align: center; }
+  .thumb-label h3 { margin: 0 0 4px; }
+  .thumb-label p { margin: 0; opacity: 0.7; font-size: 14px; }
+</style>
+
+<div class="thumb-grid">
+  <!-- Option A: Dynamic Racing Scene -->
+  <div class="thumb-card option" data-choice="a" onclick="toggleSelect(this)">
+    <canvas class="thumb-canvas" id="thumbA" width="512" height="512"></canvas>
+    <div class="thumb-label">
+      <div class="letter" style="display:inline-block;margin-bottom:8px">A</div>
+      <h3>Racing Action</h3>
+      <p>Car on curved track, speed lines, dynamic angle</p>
+    </div>
+  </div>
+
+  <!-- Option B: Grid Start -->
+  <div class="thumb-card option" data-choice="b" onclick="toggleSelect(this)">
+    <canvas class="thumb-canvas" id="thumbB" width="512" height="512"></canvas>
+    <div class="thumb-label">
+      <div class="letter" style="display:inline-block;margin-bottom:8px">B</div>
+      <h3>Starting Grid</h3>
+      <p>Car at start/finish line with checkered flag pattern</p>
+    </div>
+  </div>
+
+  <!-- Option C: Overhead Track Map -->
+  <div class="thumb-card option" data-choice="c" onclick="toggleSelect(this)">
+    <canvas class="thumb-canvas" id="thumbC" width="512" height="512"></canvas>
+    <div class="thumb-label">
+      <div class="letter" style="display:inline-block;margin-bottom:8px">C</div>
+      <h3>Track Overview</h3>
+      <p>Full circuit from above with car, clean and iconic</p>
+    </div>
+  </div>
+
+  <!-- Option D: Bold Logo -->
+  <div class="thumb-card option" data-choice="d" onclick="toggleSelect(this)">
+    <canvas class="thumb-canvas" id="thumbD" width="512" height="512"></canvas>
+    <div class="thumb-label">
+      <div class="letter" style="display:inline-block;margin-bottom:8px">D</div>
+      <h3>Bold Emblem</h3>
+      <p>Large title, car silhouette, checkered accents</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const S = 512;
+
+// Shared helpers
+function drawF1Car(ctx, x, y, angle, scale, bodyColor, wingColor) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  ctx.scale(scale, scale);
+  const w = 64, h = 141;
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.beginPath(); ctx.ellipse(3, 3, w*0.5, h*0.38, 0, 0, Math.PI*2); ctx.fill();
+  // Rear tires
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(-w*0.5, h*0.08, w*0.17, h*0.24);
+  ctx.fillRect(w*0.33, h*0.08, w*0.17, h*0.24);
+  ctx.fillRect(-w*0.48, -h*0.3, w*0.14, h*0.18);
+  ctx.fillRect(w*0.34, -h*0.3, w*0.14, h*0.18);
+  // Rear wing
+  ctx.fillStyle = wingColor;
+  ctx.fillRect(-w*0.6, h*0.34, w*1.2, h*0.05);
+  ctx.fillRect(-w*0.62, h*0.26, w*0.06, h*0.15);
+  ctx.fillRect(w*0.56, h*0.26, w*0.06, h*0.15);
+  // Body
+  ctx.fillStyle = bodyColor;
+  ctx.beginPath();
+  ctx.moveTo(0, -h*0.44); ctx.lineTo(w*0.18, -h*0.2); ctx.lineTo(w*0.24, 0);
+  ctx.lineTo(w*0.28, h*0.25); ctx.lineTo(-w*0.28, h*0.25); ctx.lineTo(-w*0.24, 0);
+  ctx.lineTo(-w*0.18, -h*0.2); ctx.closePath(); ctx.fill();
+  // Cockpit
+  ctx.fillStyle = '#111';
+  ctx.beginPath(); ctx.ellipse(0, -h*0.08, w*0.13, h*0.1, 0, 0, Math.PI*2); ctx.fill();
+  // Sidepods
+  ctx.fillStyle = wingColor;
+  ctx.fillRect(-w*0.34, -h*0.02, w*0.12, h*0.2);
+  ctx.fillRect(w*0.22, -h*0.02, w*0.12, h*0.2);
+  // Front wing
+  ctx.fillStyle = wingColor;
+  ctx.fillRect(-w*0.52, -h*0.36, w*1.04, h*0.04);
+  // Nose
+  ctx.fillStyle = bodyColor;
+  ctx.beginPath();
+  ctx.moveTo(-w*0.08, -h*0.36); ctx.lineTo(w*0.08, -h*0.36);
+  ctx.lineTo(w*0.04, -h*0.46); ctx.lineTo(-w*0.04, -h*0.46); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+function drawTitle(ctx, x, y, size, color) {
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.font = `900 ${size}px "Arial Black", Arial, sans-serif`;
+  ctx.fillText('HOT LAP', x+3, y+3);
+  // Main
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText('HOT LAP', x, y);
+  ctx.restore();
+}
+
+function drawCheckerStripe(ctx, x, y, w, h, cols, rows) {
+  const cw = w / cols, ch = h / rows;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      ctx.fillStyle = (r + c) % 2 === 0 ? '#fff' : '#222';
+      ctx.fillRect(x + c * cw, y + r * ch, cw, ch);
+    }
+  }
+}
+
+function drawCurvedTrack(ctx, cx, cy, radius, trackW, startAngle, endAngle, grassColor, trackColor) {
+  // Grass/curb outside
+  ctx.strokeStyle = grassColor || '#2a7a2a';
+  ctx.lineWidth = trackW + 16;
+  ctx.lineCap = 'butt';
+  ctx.beginPath(); ctx.arc(cx, cy, radius, startAngle, endAngle); ctx.stroke();
+  // Track surface
+  ctx.strokeStyle = trackColor || '#444';
+  ctx.lineWidth = trackW;
+  ctx.beginPath(); ctx.arc(cx, cy, radius, startAngle, endAngle); ctx.stroke();
+  // Center line
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([12, 12]);
+  ctx.beginPath(); ctx.arc(cx, cy, radius, startAngle, endAngle); ctx.stroke();
+  ctx.setLineDash([]);
+  // Curbs
+  const curbW = 6;
+  for (let side = -1; side <= 1; side += 2) {
+    const cr = radius + side * trackW/2;
+    const segments = 20;
+    const step = (endAngle - startAngle) / segments;
+    for (let i = 0; i < segments; i++) {
+      ctx.strokeStyle = i % 2 === 0 ? '#cc0000' : '#fff';
+      ctx.lineWidth = curbW;
+      ctx.beginPath();
+      ctx.arc(cx, cy, cr, startAngle + i * step, startAngle + (i+1) * step);
+      ctx.stroke();
+    }
+  }
+}
+
+// ── OPTION A: Racing Action ──
+(function() {
+  const c = document.getElementById('thumbA');
+  const ctx = c.getContext('2d');
+  // Background - dark asphalt gradient
+  const bg = ctx.createRadialGradient(S*0.4, S*0.5, 50, S*0.5, S*0.5, S*0.7);
+  bg.addColorStop(0, '#3a3a3a');
+  bg.addColorStop(1, '#1a1a1a');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, S, S);
+
+  // Grass areas
+  ctx.fillStyle = '#1e6b1e';
+  ctx.beginPath();
+  ctx.moveTo(0, 0); ctx.lineTo(S*0.15, 0); ctx.lineTo(0, S*0.5); ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(S, S*0.5); ctx.lineTo(S, S); ctx.lineTo(S*0.6, S); ctx.closePath(); ctx.fill();
+
+  // Curved track
+  drawCurvedTrack(ctx, S*1.1, S*1.2, S*0.85, 120, Math.PI*1.15, Math.PI*1.55, '#1e6b1e', '#444');
+
+  // Speed lines
+  ctx.save();
+  ctx.globalAlpha = 0.15;
+  for (let i = 0; i < 12; i++) {
+    const lx = S*0.2 + Math.random()*S*0.5;
+    const ly = S*0.1 + Math.random()*S*0.7;
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1 + Math.random()*2;
+    ctx.beginPath();
+    ctx.moveTo(lx, ly);
+    ctx.lineTo(lx + 30 + Math.random()*40, ly + 50 + Math.random()*30);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Car
+  drawF1Car(ctx, S*0.42, S*0.52, -0.35, 1.8, '#e22', '#fff');
+
+  // Title
+  drawTitle(ctx, S*0.5, S*0.14, 72, '#fff');
+
+  // Subtitle
+  ctx.textAlign = 'center';
+  ctx.font = '600 22px Arial, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.fillText('TIME TRIAL RACING', S*0.5, S*0.21);
+})();
+
+// ── OPTION B: Starting Grid ──
+(function() {
+  const c = document.getElementById('thumbB');
+  const ctx = c.getContext('2d');
+  // Background
+  const bg = ctx.createLinearGradient(0, 0, 0, S);
+  bg.addColorStop(0, '#2a2a2a');
+  bg.addColorStop(1, '#1a1a1a');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, S, S);
+
+  // Grass strips
+  ctx.fillStyle = '#1e6b1e';
+  ctx.fillRect(0, 0, S*0.12, S);
+  ctx.fillRect(S*0.88, 0, S*0.12, S);
+
+  // Track surface
+  ctx.fillStyle = '#3a3a3a';
+  ctx.fillRect(S*0.12, 0, S*0.76, S);
+
+  // Curbs left/right
+  for (let i = 0; i < 30; i++) {
+    ctx.fillStyle = i % 2 === 0 ? '#cc0000' : '#fff';
+    ctx.fillRect(S*0.12, i * (S/30), S*0.03, S/30);
+    ctx.fillRect(S*0.85, i * (S/30), S*0.03, S/30);
+  }
+
+  // Checkered start line
+  drawCheckerStripe(ctx, S*0.15, S*0.52, S*0.7, S*0.06, 14, 2);
+
+  // Grid boxes
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([8, 6]);
+  ctx.strokeRect(S*0.32, S*0.58, S*0.14, S*0.1);
+  ctx.strokeRect(S*0.54, S*0.64, S*0.14, S*0.1);
+  ctx.setLineDash([]);
+
+  // F1 start lights
+  const lightY = S * 0.38;
+  for (let i = 0; i < 5; i++) {
+    const lx = S*0.25 + i * S*0.12;
+    ctx.fillStyle = '#222';
+    ctx.beginPath();
+    ctx.roundRect(lx-12, lightY-18, 24, 36, 4);
+    ctx.fill();
+    ctx.fillStyle = '#e22';
+    ctx.beginPath(); ctx.arc(lx, lightY-6, 7, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#e22';
+    ctx.beginPath(); ctx.arc(lx, lightY+10, 7, 0, Math.PI*2); ctx.fill();
+  }
+
+  // Car on grid
+  drawF1Car(ctx, S*0.39, S*0.66, 0, 1.6, '#e22', '#fff');
+
+  // Title at top
+  drawTitle(ctx, S*0.5, S*0.15, 72, '#fff');
+
+  ctx.textAlign = 'center';
+  ctx.font = '600 22px Arial, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.fillText('TIME TRIAL RACING', S*0.5, S*0.22);
+})();
+
+// ── OPTION C: Track Overview ──
+(function() {
+  const c = document.getElementById('thumbC');
+  const ctx = c.getContext('2d');
+  // Dark background
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, S, S);
+
+  // Draw a circuit outline (simplified oval-ish track)
+  ctx.save();
+  ctx.translate(S*0.5, S*0.55);
+  ctx.scale(0.7, 0.7);
+
+  // Track path - custom circuit shape
+  const trackPath = new Path2D();
+  trackPath.moveTo(-180, -140);
+  trackPath.lineTo(100, -140);
+  trackPath.quadraticCurveTo(200, -140, 200, -40);
+  trackPath.lineTo(200, 20);
+  trackPath.quadraticCurveTo(200, 100, 140, 130);
+  trackPath.lineTo(40, 170);
+  trackPath.quadraticCurveTo(-20, 200, -80, 170);
+  trackPath.lineTo(-160, 100);
+  trackPath.quadraticCurveTo(-220, 60, -220, -20);
+  trackPath.lineTo(-220, -60);
+  trackPath.quadraticCurveTo(-220, -140, -180, -140);
+
+  // Glow
+  ctx.strokeStyle = 'rgba(230,50,50,0.15)';
+  ctx.lineWidth = 60;
+  ctx.stroke(trackPath);
+
+  // Track surface
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 36;
+  ctx.stroke(trackPath);
+
+  // Center line
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([8, 8]);
+  ctx.stroke(trackPath);
+  ctx.setLineDash([]);
+
+  // Walls
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 38;
+  ctx.globalCompositeOperation = 'destination-over';
+  ctx.stroke(trackPath);
+  ctx.globalCompositeOperation = 'source-over';
+
+  ctx.restore();
+
+  // Car dot on track
+  ctx.fillStyle = '#e22';
+  ctx.shadowColor = '#e22';
+  ctx.shadowBlur = 12;
+  ctx.beginPath();
+  ctx.arc(S*0.52, S*0.23, 8, 0, Math.PI*2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Small car icon
+  drawF1Car(ctx, S*0.52, S*0.23, -0.1, 0.5, '#e22', '#fff');
+
+  // Title
+  drawTitle(ctx, S*0.5, S*0.08, 64, '#fff');
+
+  ctx.textAlign = 'center';
+  ctx.font = '600 18px Arial, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.fillText('TIME TRIAL RACING', S*0.5, S*0.145);
+
+  // Timer UI element at bottom
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.beginPath();
+  ctx.roundRect(S*0.25, S*0.88, S*0.5, S*0.07, 8);
+  ctx.fill();
+  ctx.textAlign = 'center';
+  ctx.font = '700 26px "Courier New", monospace';
+  ctx.fillStyle = '#4f4';
+  ctx.fillText('01:23.45', S*0.5, S*0.925);
+})();
+
+// ── OPTION D: Bold Emblem ──
+(function() {
+  const c = document.getElementById('thumbD');
+  const ctx = c.getContext('2d');
+
+  // Background gradient - dark with red tint
+  const bg = ctx.createRadialGradient(S*0.5, S*0.45, 20, S*0.5, S*0.5, S*0.6);
+  bg.addColorStop(0, '#2a1515');
+  bg.addColorStop(1, '#111');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, S, S);
+
+  // Checkered stripe top
+  drawCheckerStripe(ctx, 0, 0, S, S*0.05, 16, 2);
+  // Checkered stripe bottom
+  drawCheckerStripe(ctx, 0, S*0.95, S, S*0.05, 16, 2);
+
+  // Diagonal speed lines
+  ctx.save();
+  ctx.globalAlpha = 0.06;
+  for (let i = -10; i < 20; i++) {
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(i * 40, 0);
+    ctx.lineTo(i * 40 + S*0.3, S);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Large title
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // "HOT" in red
+  ctx.font = '900 120px "Arial Black", Arial, sans-serif';
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillText('HOT', S*0.5+4, S*0.3+4);
+  ctx.fillStyle = '#e22';
+  ctx.fillText('HOT', S*0.5, S*0.3);
+
+  // "LAP" in white
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillText('LAP', S*0.5+4, S*0.48+4);
+  ctx.fillStyle = '#fff';
+  ctx.fillText('LAP', S*0.5, S*0.48);
+  ctx.restore();
+
+  // Horizontal red stripe accent
+  ctx.fillStyle = '#e22';
+  ctx.fillRect(S*0.15, S*0.565, S*0.7, 4);
+
+  // Car centered below
+  drawF1Car(ctx, S*0.5, S*0.72, 0, 2.2, '#e22', '#fff');
+
+  // Subtitle
+  ctx.textAlign = 'center';
+  ctx.font = '700 20px Arial, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  ctx.letterSpacing = '6px';
+  ctx.fillText('T I M E   T R I A L   R A C I N G', S*0.5, S*0.88);
+})();
+</script>

@@ -1,1 +1,19 @@
 {"type":"server-started","port":52688,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:52688","screen_dir":"/Users/nitzanwilnai/Programming/Claude/JSGames/RacingGame2D/.superpowers/brainstorm/84203-1775791075/content","state_dir":"/Users/nitzanwilnai/Programming/Claude/JSGames/RacingGame2D/.superpowers/brainstorm/84203-1775791075/state"}
+{"type":"server-stopped","reason":"owner process exited"}
+node:fs:2412
+    return binding.writeFileUtf8(
+                   ^
+
+Error: ENOENT: no such file or directory, open '/Users/nitzanwilnai/Programming/Claude/JSGames/RacingGame2D/.superpowers/brainstorm/84203-1775791075/state/server-stopped'
+    at Object.writeFileSync (node:fs:2412:20)
+    at shutdown (/Users/nitzanwilnai/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/brainstorming/scripts/server.cjs:305:8)
+    at Timeout._onTimeout (/Users/nitzanwilnai/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/brainstorming/scripts/server.cjs:321:24)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/nitzanwilnai/Programming/Claude/JSGames/RacingGame2D/.superpowers/brainstorm/84203-1775791075/state/server-stopped'
+}
+
+Node.js v24.13.1
