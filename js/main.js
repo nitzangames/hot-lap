@@ -70,6 +70,36 @@ let currentSeed = TRACK_SEEDS[currentTrackIndex];
 let currentSeedAlpha = seedToAlpha(currentSeed);
 let trackStartAngle = 0;
 
+// Track select cache — built lazily on first entry to 'trackselect' state
+let cachedTrackPaths = null; // [{ track, centerLine, startAngle }, ...]
+let cachedBestTimes = null;  // [number|null, ...] — parallel to TRACK_SEEDS
+
+function ensureTrackCache() {
+  if (cachedTrackPaths === null) {
+    cachedTrackPaths = TRACK_SEEDS.map(seed => {
+      const t = generateTrack(seed);
+      const cl = buildTrackPath(t);
+      const gridTile = t.tiles[0];
+      const sa = dirAngles[gridTile.dir];
+      return { track: t, centerLine: cl, startAngle: sa };
+    });
+  }
+  refreshBestTimes();
+}
+
+function refreshBestTimes() {
+  cachedBestTimes = TRACK_SEEDS.map(seed => {
+    try {
+      const raw = localStorage.getItem(`racing-2d:ghost:${seed}`);
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (data && data.time != null) return data.time;
+      }
+    } catch (_) {}
+    return null;
+  });
+}
+
 function initTrack(seed) {
   currentSeed = seed;
   currentSeedAlpha = seedToAlpha(seed);
@@ -308,6 +338,7 @@ function handleCarSelectClick(clientX, clientY) {
   if (x >= go.x && x <= go.x + go.w && y >= go.y && y <= go.y + go.h) {
     playClick();
     hapticTap();
+    ensureTrackCache();
     gameState.state = 'trackselect';
     return;
   }
