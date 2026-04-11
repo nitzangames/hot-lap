@@ -730,6 +730,7 @@ function render() {
     drawHUD(ctx, gameState.raceTime / 1000, bestTimeSec, 0, currentSeedAlpha);
     const panelData = leaderboard.getCachedFinishPanel();
     const previewRanks = leaderboard.getCachedPreviewRanks();
+    const sdkPresent = leaderboard.hasSdk();
     finishHitAreas = drawFinishScreen(
       ctx,
       gameState.raceTime / 1000,
@@ -737,8 +738,10 @@ function render() {
       gameState.isNewRecord,
       {
         panelData,
-        panelLoading: panelData === null,
-        panelError: false, // loading state is indistinguishable from fetch-failed-returning-null; acceptable for v1
+        // Only show "loading" if the SDK is actually there and a fetch is in flight.
+        // Without SDK (localhost dev, or iframe without injection), flip straight to error.
+        panelLoading: sdkPresent && panelData === null,
+        panelError: !sdkPresent,
         signedIn: leaderboard.isSignedIn(),
         myPreviewRank: previewRanks ? previewRanks[currentTrackIndex] : null,
         currentTrackIndex,
