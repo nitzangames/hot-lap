@@ -1,4 +1,4 @@
-import { GAME_W, GAME_H, TILE, FIXED_DT, GHOST_ALPHA } from './constants.js';
+import { GAME_W, GAME_H, TILE, FIXED_DT, GHOST_ALPHA, TRACK_SEEDS } from './constants.js';
 import { generateTrack, buildTrackPath, buildWallPaths, createWallBodies, buildCurbArcs, buildBrakeMarkers } from './track.js';
 import { Camera } from './camera.js';
 import {
@@ -65,7 +65,8 @@ let world, track, centerLine, walls, wallBodies, curbs, brakeMarkers;
 const screenShake = new ScreenShake();
 const tireSmoke = new TireSmoke();
 let car, ghost, gameState, skidmarks;
-let currentSeed = Date.now();
+let currentTrackIndex = 0;
+let currentSeed = TRACK_SEEDS[currentTrackIndex];
 let currentSeedAlpha = seedToAlpha(currentSeed);
 let trackStartAngle = 0;
 
@@ -84,8 +85,7 @@ function initTrack(seed) {
   curbs = buildCurbArcs(track);
   brakeMarkers = buildBrakeMarkers(track);
 
-  // Ghost system for this seed (TEMP: clear old ghost data)
-  try { localStorage.removeItem(`racing-2d:ghost:${seed}`); } catch(_) {}
+  // Ghost system for this seed — persists across sessions
   ghost = new Ghost(seed);
 
   // Game state
