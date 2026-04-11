@@ -172,42 +172,34 @@ export class Car {
       this.speed = 0;
       this.body.velocity.set(0, 0);
     } else {
-      // Glancing hit — partial reflection of the car's forward unit vector
-      // across the wall normal. Standard elastic reflection is
-      //     f' = f - 2 (f·n) n            (k = 1, full bounce)
-      // Partial absorption with restitution k keeps only half the
-      // perpendicular-to-wall momentum:
-      //     f' = f - (1 + k) (f·n) n      (here k = 0.5)
-      // which means a 10° incoming angle becomes ~5° outgoing (half the
-      // angle absorbed), while a head-on hit would still be a crash via
-      // the branch above.
-      //
-      // The resulting vector is not unit-length (it's shortened by the
-      // absorbed perpendicular component), so normalize before using it
-      // as the new heading.
+      // Glancing hit — slide along the wall instead of bouncing off.
+      // Project the forward vector onto the wall tangent by removing the
+      // normal component entirely:
+      //     f' = f - (f·n) n
+      // The remaining vector points along the wall in whichever direction
+      // the car was already heading. Normalize and use as the new heading.
       const preSpeed = this.speed;
       const fDotN = fx * nx + fy * ny;
-      const BOUNCE_K = 0.5;
-      let reflFx = fx - (1 + BOUNCE_K) * fDotN * nx;
-      let reflFy = fy - (1 + BOUNCE_K) * fDotN * ny;
-      const reflMag = Math.sqrt(reflFx * reflFx + reflFy * reflFy) || 1;
-      reflFx /= reflMag;
-      reflFy /= reflMag;
+      let slideFx = fx - fDotN * nx;
+      let slideFy = fy - fDotN * ny;
+      const slideMag = Math.sqrt(slideFx * slideFx + slideFy * slideFy) || 1;
+      slideFx /= slideMag;
+      slideFy /= slideMag;
 
-      // Turn the car to face the reflected heading
-      this.body.angle = Math.atan2(-reflFy, -reflFx);
+      // Turn the car to face along the wall
+      this.body.angle = Math.atan2(-slideFy, -slideFx);
       this.body._aabbDirty = true;
 
       // Light speed loss — the car stays mostly at its pre-collision pace
       const BOUNCE_DAMPEN = 0.75;
       const bounceSpeed = preSpeed * BOUNCE_DAMPEN;
-      const rx = reflFx * bounceSpeed;
-      const ry = reflFy * bounceSpeed;
+      const rx = slideFx * bounceSpeed;
+      const ry = slideFy * bounceSpeed;
       this.body.velocity.set(rx, ry);
 
       this._bounceVelX = rx;
       this._bounceVelY = ry;
-      this._bounceTimer = 0.5;
+      this._bounceTimer = 0.1;
       this.speed = bounceSpeed;
     }
   }
