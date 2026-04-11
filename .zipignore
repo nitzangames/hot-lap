@@ -1,5 +1,6 @@
 .git/*
 .superpowers/*
+.worktrees/*
 docs/*
 tests/*
 error.log
