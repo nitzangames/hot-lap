@@ -53,11 +53,11 @@ title → carselect → trackselect → countdown → racing → finished / cras
 
 Rendered by a new `drawTrackSelect(ctx, trackPaths, currentIndex, bestTimes)` in `js/renderer.js`. Returns hit areas for click handling.
 
-Layout on the 1920×1080 canvas:
+Layout on the 1080×1920 portrait canvas:
 
-- Title "CHOOSE TRACK" at the top (~80 px from top)
+- Title "CHOOSE TRACK" at the top (~120 px from top)
 - 4 columns × 5 rows grid of square tiles, centered
-- Tile size ~200 px with 20 px gap
+- Tile size ~230 px with 20 px gap (grid width = 4*230 + 3*20 = 980, centered in 1080 → 50 px side margin)
 - Back arrow ("← BACK") top-left returning to `carselect`
 
 Each tile contains:
