@@ -5,14 +5,20 @@ import {
   drawTrack, drawCar, drawHUD,
   drawTitleScreen, drawCountdown, drawFinishScreen, drawCrashScreen,
   drawSteeringWheel, drawMinimap, drawCarSelect,
+  drawPauseButton, drawPauseMenu,
 } from './renderer.js';
+import {
+  initAudio, playCountdownBeep, playGoBeep, playCrash, playLapFinish, playClick,
+  hapticTap, hapticThump,
+  getSfxEnabled, getHapticsEnabled, setSfxEnabled, setHapticsEnabled,
+} from './audio.js';
 import { Car } from './car.js';
 import { Input } from './input.js';
 import { Ghost } from './ghost.js';
 import { GameState } from './game.js';
 import { World, Vec2 } from '../physics2d/index.js';
 import { SkidMarks } from './skidmarks.js';
-import { ScreenShake, drawGrass, drawTrackNoise, drawSpeedLines, triggerCrashFlash, drawCrashFlash } from './effects.js';
+import { ScreenShake, drawGrass, drawTrackNoise, triggerCrashFlash, drawCrashFlash, TireSmoke } from './effects.js';
 import { drawStyledCar, loadCarConfig, saveCarConfig, hueToColors } from './car-styles.js';
 
 // ── Canvas setup ──────────────────────────────────────────────────────────────
@@ -57,6 +63,7 @@ function alphaToSeed(str) {
 
 let world, track, centerLine, walls, wallBodies, curbs, brakeMarkers;
 const screenShake = new ScreenShake();
+const tireSmoke = new TireSmoke();
 let car, ghost, gameState, skidmarks;
 let currentSeed = Date.now();
 let currentSeedAlpha = seedToAlpha(currentSeed);
@@ -100,6 +107,8 @@ function initTrack(seed) {
       if (car.crashed && !wasCrashed) {
         screenShake.trigger(40);
         triggerCrashFlash();
+        playCrash();
+        hapticThump();
       } else if (!car.crashed) {
         screenShake.trigger(15);
       }
@@ -129,6 +138,7 @@ function spawnCar() {
   trackStartAngle = startAngle;
   hasLeftStart = false;
   skidmarks = new SkidMarks();
+  tireSmoke.clear();
 }
 
 // ── Input ─────────────────────────────────────────────────────────────────────
@@ -169,6 +179,8 @@ let carSelectHitAreas = null;
 let titleHitAreas = null;
 let finishHitAreas = null;
 let crashHitAreas = null;
+let pauseButtonBox = null;
+let pauseMenuHitAreas = null;
 let isDraggingSlider = false;
 
 // ── Click handling ───────────────────────────────────────────────────────────
@@ -187,6 +199,55 @@ function hitTest(gx, gy, box) {
 
 function handleClick(clientX, clientY) {
   const { x, y } = clientToGame(clientX, clientY);
+
+  // Pause button — works during racing/finishing
+  if ((gameState.state === 'racing' || gameState.state === 'finishing') && pauseButtonBox) {
+    if (hitTest(x, y, pauseButtonBox)) {
+      playClick();
+      hapticTap();
+      gameState.pause();
+      return;
+    }
+  }
+
+  // Pause menu interactions
+  if (gameState.state === 'paused' && pauseMenuHitAreas) {
+    if (hitTest(x, y, pauseMenuHitAreas.sfxToggle)) {
+      setSfxEnabled(!getSfxEnabled());
+      playClick();
+      hapticTap();
+      return;
+    }
+    if (hitTest(x, y, pauseMenuHitAreas.hapticsToggle)) {
+      setHapticsEnabled(!getHapticsEnabled());
+      playClick();
+      hapticTap();
+      return;
+    }
+    if (hitTest(x, y, pauseMenuHitAreas.resumeBtn)) {
+      playClick();
+      hapticTap();
+      gameState.resume();
+      return;
+    }
+    if (hitTest(x, y, pauseMenuHitAreas.retryBtn)) {
+      playClick();
+      hapticTap();
+      ghost.resetRecording();
+      spawnCar();
+      gameState.startCountdown();
+      return;
+    }
+    if (hitTest(x, y, pauseMenuHitAreas.menuBtn)) {
+      playClick();
+      hapticTap();
+      ghost.resetRecording();
+      spawnCar();
+      gameState.reset();
+      return;
+    }
+    return;
+  }
 
   if (gameState.state === 'title' && titleHitAreas) {
     if (hitTest(x, y, titleHitAreas.raceBox)) {
@@ -269,6 +330,7 @@ let pointerDownY = 0;
 const TAP_THRESHOLD = 15; // max pixels moved to count as a tap
 
 canvas.addEventListener('pointerdown', (e) => {
+  initAudio(); // browsers require user gesture to start AudioContext
   pointerDownX = e.clientX;
   pointerDownY = e.clientY;
   if (gameState.state === 'carselect') {
@@ -334,8 +396,21 @@ let finishPreviousBest = null;
 function fixedUpdate() {
   const state = gameState.state;
 
+  if (state === 'paused') {
+    return; // Freeze physics while paused
+  }
+
   if (state === 'countdown') {
+    const before = gameState.countdownNumber;
     gameState.tickCountdown();
+    const after = gameState.countdownNumber;
+    if (before !== after) {
+      if (after > 0) {
+        playCountdownBeep();
+      } else {
+        playGoBeep();
+      }
+    }
   } else if (state === 'racing') {
     // Car physics
     car.update(input.steering);
@@ -344,6 +419,9 @@ function fixedUpdate() {
 
     // Skid marks
     skidmarks.update(car.physX, car.physY, car.physAngle, input.steering, car.speed);
+
+    // Tire smoke (wheel spin at low speed)
+    tireSmoke.update(car.physX, car.physY, car.physAngle, car.speed, FIXED_DT);
 
     // Record ghost
     ghost.record(car.physX, car.physY, car.physAngle);
@@ -359,6 +437,8 @@ function fixedUpdate() {
       finishPreviousBest = ghost.bestTime;
       gameState.state = 'finishing';
       finishDelayTimer = 0;
+      playLapFinish();
+      hapticThump();
       return;
     }
 
@@ -373,6 +453,7 @@ function fixedUpdate() {
     world.step(FIXED_DT);
     car.postPhysicsUpdate();
     skidmarks.update(car.physX, car.physY, car.physAngle, input.steering, car.speed);
+    tireSmoke.update(car.physX, car.physY, car.physAngle, car.speed, FIXED_DT);
 
     // Keep recording ghost
     ghost.record(car.physX, car.physY, car.physAngle);
@@ -420,7 +501,7 @@ function render() {
   skidmarks.draw(ctx);
 
   // Ghost car (draw behind player)
-  if (state === 'racing' || state === 'countdown' || state === 'finishing') {
+  if (state === 'racing' || state === 'countdown' || state === 'finishing' || state === 'paused') {
     const ghostFrame = ghost.getGhostFrame();
     if (ghostFrame) {
       drawStyledCar(ctx, ghostFrame.x, ghostFrame.y, ghostFrame.angle, carConfig.styleIndex, carConfig.hue + 180, GHOST_ALPHA);
@@ -430,12 +511,10 @@ function render() {
   // Player car
   drawStyledCar(ctx, car.x, car.y, car.angle, carConfig.styleIndex, carConfig.hue, 1);
 
-  camera.restore(ctx);
+  // Tire smoke (above cars, world space)
+  tireSmoke.draw(ctx);
 
-  // Speed lines (screen-space, only during racing)
-  if (state === 'racing' || state === 'finishing') {
-    drawSpeedLines(ctx, car.speed, 1350);
-  }
+  camera.restore(ctx);
 
   // Crash flash (screen-space)
   drawCrashFlash(ctx, 1 / 60);
@@ -452,14 +531,20 @@ function render() {
   ctx.fillText('seed: ' + currentSeedAlpha + '  tiles: ' + track.tiles.length, 16, 16);
   ctx.restore();
 
-  // HUD timer — show during racing and finishing
-  if (state === 'racing' || state === 'finishing') {
+  // HUD timer — show during racing, finishing, and paused
+  if (state === 'racing' || state === 'finishing' || state === 'paused') {
     const bestTimeSec = ghost.bestTime !== null ? ghost.bestTime / 1000 : null;
     drawHUD(ctx, gameState.raceTime / 1000, bestTimeSec, car.speed * 0.26, currentSeedAlpha);
 
-    // Steering wheel (only while dragging)
-    if (input.dragging) {
-      drawSteeringWheel(ctx, input.dragScreenX, input.dragScreenY, input.steering, car.speed * 0.26);
+    // Pause button — top right
+    pauseButtonBox = drawPauseButton(ctx);
+
+    // Steering wheel (only while dragging, never while paused)
+    // For touch/pen: offset above the finger so it doesn't block the wheel
+    // For mouse: render right where the cursor is
+    if (input.dragging && state !== 'paused') {
+      const yOffset = input.pointerType === 'mouse' ? 0 : -220;
+      drawSteeringWheel(ctx, input.dragScreenX, input.dragScreenY + yOffset, input.steering, car.speed * 0.26);
     }
   }
 
@@ -484,6 +569,8 @@ function render() {
     );
   } else if (state === 'crashed') {
     crashHitAreas = drawCrashScreen(ctx);
+  } else if (state === 'paused') {
+    pauseMenuHitAreas = drawPauseMenu(ctx, getSfxEnabled(), getHapticsEnabled());
   }
 }
 

@@ -8,6 +8,23 @@ export class GameState {
     this.finishDelta = null;
     this.isNewRecord = false;
     this._countdownAccumulator = 0;
+    this._stateBeforePause = null;
+  }
+
+  /** Pause the current race. Saves the previous state so we can resume. */
+  pause() {
+    if (this.state === 'racing' || this.state === 'finishing') {
+      this._stateBeforePause = this.state;
+      this.state = 'paused';
+    }
+  }
+
+  /** Resume from pause. */
+  resume() {
+    if (this.state === 'paused') {
+      this.state = this._stateBeforePause || 'racing';
+      this._stateBeforePause = null;
+    }
   }
 
   /**

@@ -20,6 +20,7 @@ export class Input {
     this.dragScreenX = 0;
     this.dragScreenY = 0;
     this.dragging = false;
+    this.pointerType = 'mouse'; // 'mouse' | 'touch' | 'pen'
 
     canvas.addEventListener('pointerdown', (e) => {
       try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
@@ -29,6 +30,7 @@ export class Input {
       this._rawDirty = true;
       this._setDragScreen(e.clientX, e.clientY);
       this.dragging = true;
+      this.pointerType = e.pointerType || 'mouse';
     }, { passive: true });
 
     canvas.addEventListener('pointermove', (e) => {

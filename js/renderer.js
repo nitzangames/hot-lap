@@ -450,7 +450,7 @@ export function drawTitleScreen(ctx, seed, bodyColor, dt) {
 
   ctx.fillStyle = '#666';
   ctx.font = '24px sans-serif';
-  ctx.fillText('v0.25 — seed: ' + seed, cx, GAME_H * 0.92);
+  ctx.fillText('v0.30 — seed: ' + seed, cx, GAME_H * 0.92);
 
   ctx.restore();
 
@@ -639,7 +639,7 @@ export function drawCrashScreen(ctx) {
  */
 export function drawSteeringWheel(ctx, screenX, screenY, steering, speed) {
   const rotation = steering * Math.PI * 0.75;
-  const w = 160, h = 120;
+  const w = 240, h = 180;
 
   ctx.save();
   ctx.globalAlpha = 0.85;
@@ -683,30 +683,30 @@ export function drawSteeringWheel(ctx, screenX, screenY, steering, speed) {
       ctx.fillStyle = '#1a1a1a';
     }
     ctx.beginPath();
-    ctx.arc(i * 10, ledY, 3.5, 0, Math.PI * 2);
+    ctx.arc(i * 15, ledY, 5, 0, Math.PI * 2);
     ctx.fill();
   }
 
   // Center screen
   ctx.fillStyle = '#111';
   ctx.beginPath();
-  ctx.roundRect(-34, -18, 68, 32, 4);
+  ctx.roundRect(-51, -27, 102, 48, 6);
   ctx.fill();
 
   // Speed on screen
   ctx.fillStyle = '#0af';
-  ctx.font = 'bold 13px monospace';
+  ctx.font = 'bold 20px monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const kph = Math.round(speed || 0);
-  ctx.fillText(kph + '', 0, -5);
+  ctx.fillText(kph + '', 0, -7);
   ctx.fillStyle = '#888';
-  ctx.font = '8px monospace';
-  ctx.fillText('km/h', 0, 7);
+  ctx.font = '12px monospace';
+  ctx.fillText('km/h', 0, 11);
 
   // Top marker
   ctx.fillStyle = '#e63030';
-  ctx.fillRect(-3, -h*0.5 - 3, 6, 6);
+  ctx.fillRect(-4, -h*0.5 - 4, 9, 9);
 
   ctx.restore();
 }
@@ -959,4 +959,117 @@ export function drawCarSelect(ctx, selectedStyle, hue) {
   const goBox = { x: cx - 200, y: goY, w: 400, h: 90 };
 
   return { styleBoxes, sliderBox, goBox };
+}
+
+// ── Pause button + pause menu ────────────────────────────────────────────────
+
+/** Draw a pause button in the top-right corner during racing. Returns hit area. */
+export function drawPauseButton(ctx) {
+  const size = 90;
+  const margin = 24;
+  const x = GAME_W - size - margin;
+  const y = margin;
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.beginPath();
+  ctx.roundRect(x, y, size, size, 14);
+  ctx.fill();
+
+  // Two vertical bars
+  ctx.fillStyle = '#fff';
+  const barW = 12;
+  const barH = 44;
+  const gap = 12;
+  const cx = x + size / 2;
+  const cy = y + size / 2;
+  ctx.fillRect(cx - gap / 2 - barW, cy - barH / 2, barW, barH);
+  ctx.fillRect(cx + gap / 2, cy - barH / 2, barW, barH);
+  ctx.restore();
+
+  return { x, y, w: size, h: size };
+}
+
+/** Draw the pause menu overlay. Returns hit areas for all interactive elements. */
+export function drawPauseMenu(ctx, sfxOn, hapticsOn) {
+  // Dim background
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, GAME_W, GAME_H);
+
+  // Panel
+  const panelW = 760;
+  const panelH = 1000;
+  const panelX = (GAME_W - panelW) / 2;
+  const panelY = (GAME_H - panelH) / 2;
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath();
+  ctx.roundRect(panelX, panelY, panelW, panelH, 32);
+  ctx.fill();
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  // Title
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 88px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText('PAUSED', GAME_W / 2, panelY + 60);
+
+  // Toggle row helper
+  function drawToggle(label, on, y) {
+    ctx.fillStyle = '#fff';
+    ctx.font = '46px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, panelX + 80, y);
+
+    // Toggle pill
+    const tw = 160, th = 76;
+    const tx = panelX + panelW - tw - 80;
+    const ty = y - th / 2;
+    ctx.fillStyle = on ? '#3aa848' : '#444';
+    ctx.beginPath();
+    ctx.roundRect(tx, ty, tw, th, th / 2);
+    ctx.fill();
+    // Knob
+    const knobR = th / 2 - 8;
+    const knobX = on ? tx + tw - knobR - 8 : tx + knobR + 8;
+    const knobY = ty + th / 2;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(knobX, knobY, knobR, 0, Math.PI * 2);
+    ctx.fill();
+
+    return { x: tx, y: ty, w: tw, h: th };
+  }
+
+  const sfxToggle = drawToggle('SOUND', sfxOn, panelY + 260);
+  const hapticsToggle = drawToggle('HAPTICS', hapticsOn, panelY + 380);
+
+  // Buttons
+  function drawBtn(label, color, y) {
+    const bw = panelW - 160;
+    const bx = panelX + 80;
+    const bh = 110;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect(bx, y, bw, bh, 18);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 56px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, GAME_W / 2, y + bh / 2);
+    return { x: bx, y, w: bw, h: bh };
+  }
+
+  const resumeBtn = drawBtn('RESUME', '#2e8a3a', panelY + 540);
+  const retryBtn = drawBtn('RETRY', '#444', panelY + 690);
+  const menuBtn = drawBtn('MAIN MENU', '#444', panelY + 840);
+
+  ctx.restore();
+
+  return { sfxToggle, hapticsToggle, resumeBtn, retryBtn, menuBtn };
 }

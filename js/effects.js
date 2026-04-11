@@ -1,4 +1,4 @@
-import { GAME_W, GAME_H, TILE } from './constants.js';
+import { GAME_W, GAME_H, TILE, CAR_W, MAX_SPEED } from './constants.js';
 
 // ── Screen shake ─────────────────────────────────────────────────────────────
 
@@ -128,41 +128,124 @@ export function drawTrackNoise(ctx, centerLine) {
   ctx.restore();
 }
 
-// ── Speed lines ──────────────────────────────────────────────────────────────
+// ── Tire smoke particles ─────────────────────────────────────────────────────
 
 /**
- * Draw speed lines radiating from behind the car.
- * Called in screen-space (after camera restore).
+ * Soft smoke puffs from the rear tires when the car is at low speed
+ * (wheel spin). Spawns from race start and after collisions.
+ *
+ * Pre-allocated pool, single shared sprite drawn via drawImage for fast
+ * mobile rendering.
  */
-export function drawSpeedLines(ctx, speed, maxSpeed) {
-  const intensity = Math.max(0, (speed - maxSpeed * 0.5) / (maxSpeed * 0.5));
-  if (intensity <= 0) return;
-
-  ctx.save();
-  ctx.globalAlpha = intensity * 0.25;
-  ctx.strokeStyle = '#fff';
-  ctx.lineWidth = 2;
-  ctx.lineCap = 'round';
-
-  const cx = GAME_W / 2;
-  const cy = GAME_H / 2;
-  const lineCount = Math.floor(intensity * 12) + 4;
-
-  for (let i = 0; i < lineCount; i++) {
-    // Lines along the edges of the screen, streaming backward
-    const side = Math.random() > 0.5 ? 1 : -1;
-    const xSpread = GAME_W * 0.3 + Math.random() * GAME_W * 0.2;
-    const x = cx + side * xSpread;
-    const yStart = Math.random() * GAME_H * 0.4;
-    const lineLen = 40 + Math.random() * 80 * intensity;
-
-    ctx.beginPath();
-    ctx.moveTo(x, yStart);
-    ctx.lineTo(x + (Math.random() - 0.5) * 10, yStart + lineLen);
-    ctx.stroke();
+export class TireSmoke {
+  constructor() {
+    this.maxParticles = 120;
+    this.particles = new Array(this.maxParticles);
+    for (let i = 0; i < this.maxParticles; i++) {
+      this.particles[i] = { x: 0, y: 0, vx: 0, vy: 0, life: 0, maxLife: 0, size: 0 };
+    }
+    this.writeIdx = 0;
+    this._sprite = makeSmokeSprite(64);
   }
 
-  ctx.restore();
+  clear() {
+    for (let i = 0; i < this.maxParticles; i++) this.particles[i].life = 0;
+  }
+
+  /**
+   * Spawn + advance smoke for this tick.
+   * @param {number} carX physics X
+   * @param {number} carY physics Y
+   * @param {number} carAngle physics angle
+   * @param {number} speed current speed (px/s)
+   * @param {number} dt fixed timestep
+   */
+  update(carX, carY, carAngle, speed, dt) {
+    // Wheel spin intensity: max at 0 speed, fades to 0 by 30% of MAX_SPEED
+    const spinThreshold = MAX_SPEED * 0.3;
+    const spinIntensity = speed < spinThreshold ? 1 - speed / spinThreshold : 0;
+
+    if (spinIntensity > 0) {
+      const cosA = Math.cos(carAngle);
+      const sinA = Math.sin(carAngle);
+      const rearOffset = CAR_W * 0.9;
+      const tireSpread = CAR_W * 0.35;
+
+      // Forward direction = (sin, -cos), so rear = (-sin, cos)
+      const rearX = carX - sinA * rearOffset;
+      const rearY = carY + cosA * rearOffset;
+      const perpX = cosA * tireSpread;
+      const perpY = sinA * tireSpread;
+
+      const leftX = rearX - perpX;
+      const leftY = rearY - perpY;
+      const rightX = rearX + perpX;
+      const rightY = rearY + perpY;
+
+      // Spawn 1-2 particles per tire per tick depending on intensity
+      const spawnCount = Math.random() < spinIntensity * 1.5 ? 2 : 1;
+      for (let i = 0; i < spawnCount; i++) {
+        this._spawn(leftX, leftY, sinA, -cosA, spinIntensity);
+        this._spawn(rightX, rightY, sinA, -cosA, spinIntensity);
+      }
+    }
+
+    // Advance existing particles
+    for (let i = 0; i < this.maxParticles; i++) {
+      const p = this.particles[i];
+      if (p.life <= 0) continue;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vx *= 0.9; // air drag
+      p.vy *= 0.9;
+      p.life -= dt;
+      p.size += dt * 80; // grow as it dissipates
+    }
+  }
+
+  _spawn(x, y, fwdX, fwdY, intensity) {
+    const p = this.particles[this.writeIdx];
+    this.writeIdx = (this.writeIdx + 1) % this.maxParticles;
+    // Velocity opposite to car forward + random spread
+    const back = 60 + Math.random() * 80;
+    const spread = 50;
+    p.x = x + (Math.random() - 0.5) * 8;
+    p.y = y + (Math.random() - 0.5) * 8;
+    p.vx = -fwdX * back + (Math.random() - 0.5) * spread;
+    p.vy = -fwdY * back + (Math.random() - 0.5) * spread;
+    p.life = 0.45 + Math.random() * 0.35;
+    p.maxLife = p.life;
+    p.size = 14 + Math.random() * 8;
+  }
+
+  /** Draw all live particles. Called in world space (inside camera transform). */
+  draw(ctx) {
+    const sprite = this._sprite;
+    for (let i = 0; i < this.maxParticles; i++) {
+      const p = this.particles[i];
+      if (p.life <= 0) continue;
+      const t = p.life / p.maxLife;
+      ctx.globalAlpha = t * 0.55;
+      const size = p.size * 2;
+      ctx.drawImage(sprite, p.x - p.size, p.y - p.size, size, size);
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+function makeSmokeSprite(size) {
+  const c = document.createElement('canvas');
+  c.width = size;
+  c.height = size;
+  const g = c.getContext('2d');
+  const r = size / 2;
+  const grad = g.createRadialGradient(r, r, 0, r, r, r);
+  grad.addColorStop(0, 'rgba(240,240,240,1)');
+  grad.addColorStop(0.4, 'rgba(220,220,220,0.6)');
+  grad.addColorStop(1, 'rgba(200,200,200,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, size, size);
+  return c;
 }
 
 // ── Crash flash ──────────────────────────────────────────────────────────────
