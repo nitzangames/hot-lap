@@ -231,7 +231,7 @@ let isDraggingSlider = false;
 
 // ── Ghost toggles (persisted) ────────────────────────────────────────────────
 const GHOST_TOGGLES_KEY = 'hotlap:ghost-toggles';
-const ghostToggles = { your: true, top: false };
+const ghostToggles = { your: true, top: true };
 (function loadGhostToggles() {
   try {
     const raw = localStorage.getItem(GHOST_TOGGLES_KEY);
