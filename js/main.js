@@ -15,6 +15,7 @@ import {
 import { Car } from './car.js';
 import { Input } from './input.js';
 import { Ghost } from './ghost.js';
+import { TopGhost } from './top-ghost.js';
 import { GameState } from './game.js';
 import { World, Vec2 } from '../physics2d/index.js';
 import { SkidMarks } from './skidmarks.js';
@@ -66,6 +67,7 @@ let world, track, centerLine, walls, wallBodies, curbs, brakeMarkers;
 const screenShake = new ScreenShake();
 const tireSmoke = new TireSmoke();
 let car, ghost, gameState, skidmarks;
+let topGhost = null; // TopGhost instance for the current track, or null
 let currentTrackIndex = 0;
 let currentSeed = TRACK_SEEDS[currentTrackIndex];
 let currentSeedAlpha = seedToAlpha(currentSeed);
@@ -126,6 +128,10 @@ function initTrack(seed) {
 
   // Ghost system for this seed — persists across sessions
   ghost = new Ghost(seed);
+
+  // Top ghost is loaded asynchronously on tile tap; reset here so a stale
+  // instance from a previous track isn't reused before the fetch resolves.
+  topGhost = null;
 
   // Game state
   gameState = new GameState();
@@ -330,6 +336,12 @@ function handleClick(clientX, clientY) {
       hapticTap();
       currentTrackIndex = (currentTrackIndex + 1) % TRACK_SEEDS.length;
       initTrack(TRACK_SEEDS[currentTrackIndex]);
+      const nextIdx = currentTrackIndex;
+      leaderboard.fetchTopGhost(nextIdx).then(frames => {
+        if (frames && currentTrackIndex === nextIdx) {
+          topGhost = new TopGhost(frames);
+        }
+      }).catch(() => {});
       gameState.startCountdown();
     } else if (hitTest(x, y, finishHitAreas.menuBox)) {
       playClick();
@@ -415,6 +427,15 @@ function handleTrackSelectClick(clientX, clientY) {
       hapticTap();
       currentTrackIndex = box.index;
       initTrack(TRACK_SEEDS[currentTrackIndex]);
+      // Lazy top-ghost fetch — resolves during the 3s countdown, usually.
+      const tappedIdx = box.index;
+      leaderboard.fetchTopGhost(tappedIdx).then(frames => {
+        // Only apply if we're still on the same track (the player may have
+        // gone back to track select and picked another one).
+        if (frames && currentTrackIndex === tappedIdx) {
+          topGhost = new TopGhost(frames);
+        }
+      }).catch(() => {});
       gameState.startCountdown();
       return;
     }
