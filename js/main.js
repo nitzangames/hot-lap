@@ -214,6 +214,23 @@ let pauseButtonBox = null;
 let pauseMenuHitAreas = null;
 let isDraggingSlider = false;
 
+// ── Ghost toggles (persisted) ────────────────────────────────────────────────
+const GHOST_TOGGLES_KEY = 'hotlap:ghost-toggles';
+const ghostToggles = { your: true, top: false };
+(function loadGhostToggles() {
+  try {
+    const raw = localStorage.getItem(GHOST_TOGGLES_KEY);
+    if (raw) {
+      const o = JSON.parse(raw);
+      if (typeof o.your === 'boolean') ghostToggles.your = o.your;
+      if (typeof o.top === 'boolean') ghostToggles.top = o.top;
+    }
+  } catch (_) {}
+})();
+function saveGhostToggles() {
+  try { localStorage.setItem(GHOST_TOGGLES_KEY, JSON.stringify(ghostToggles)); } catch (_) {}
+}
+
 // ── Click handling ───────────────────────────────────────────────────────────
 
 function clientToGame(clientX, clientY) {
