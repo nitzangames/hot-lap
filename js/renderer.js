@@ -419,23 +419,24 @@ export function drawHUD(ctx, currentTime, bestTime, speed, seed) {
 // ── Overlay screens ───────────────────────────────────────────────────────────
 
 let titleAnimTime = 0;
-export function drawTitleScreen(ctx, seed, bodyColor, dt) {
+export function drawTitleScreen(ctx, dt, styleIndex, hue) {
   titleAnimTime += (dt || 0.016);
   const cx = GAME_W / 2;
   ctx.save();
-  ctx.fillStyle = 'rgba(0,0,0,0.72)';
+  // Opaque grass-green background — no race visible behind
+  ctx.fillStyle = '#4a7a2e';
   ctx.fillRect(0, 0, GAME_W, GAME_H);
 
-  // Animated speed lines in background
+  // ── Animated "speed lines" on the grass ──
   ctx.save();
-  ctx.globalAlpha = 0.08;
-  ctx.strokeStyle = '#fff';
-  ctx.lineWidth = 2;
-  for (let i = 0; i < 20; i++) {
+  ctx.globalAlpha = 0.14;
+  ctx.strokeStyle = '#3d6524';
+  ctx.lineWidth = 3;
+  for (let i = 0; i < 24; i++) {
     const seed2 = i * 137.5;
     const x = (Math.sin(seed2) * 0.5 + 0.5) * GAME_W;
-    const baseY = ((seed2 * 0.73 + titleAnimTime * 400) % (GAME_H + 200)) - 100;
-    const lineLen = 60 + Math.sin(seed2 * 2.1) * 40;
+    const baseY = ((seed2 * 0.73 + titleAnimTime * 520) % (GAME_H + 200)) - 100;
+    const lineLen = 70 + Math.sin(seed2 * 2.1) * 50;
     ctx.beginPath();
     ctx.moveTo(x, baseY);
     ctx.lineTo(x, baseY + lineLen);
@@ -443,30 +444,110 @@ export function drawTitleScreen(ctx, seed, bodyColor, dt) {
   }
   ctx.restore();
 
+  // ── Horizontal track strip across the lower third ──
+  // Static asphalt + alternating red/white curbs on the top and bottom edges,
+  // with a dashed white center line. The animated cars drive along this strip.
+  const trackCenterY = GAME_H * 0.78;
+  const trackH = 300;
+  const trackTop = trackCenterY - trackH / 2;
+  // Asphalt
+  ctx.fillStyle = '#3d3d3d';
+  ctx.fillRect(0, trackTop, GAME_W, trackH);
+  // Curbs
+  const curbH = 28;
+  const curbSegW = 60;
+  const segCount = Math.ceil(GAME_W / curbSegW) + 1;
+  for (let i = 0; i < segCount; i++) {
+    ctx.fillStyle = i % 2 === 0 ? '#cc2222' : '#eeeeee';
+    ctx.fillRect(i * curbSegW, trackTop, curbSegW, curbH);
+    ctx.fillRect(i * curbSegW, trackTop + trackH - curbH, curbSegW, curbH);
+  }
+  // Dashed center line
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+  ctx.lineWidth = 4;
+  ctx.setLineDash([34, 26]);
+  ctx.beginPath();
+  ctx.moveTo(0, trackCenterY);
+  ctx.lineTo(GAME_W, trackCenterY);
+  ctx.stroke();
+  ctx.restore();
+
+  // ── Animated cars zooming across the track ──
+  // Both cars go the same direction (left → right). Two different speeds
+  // and phase offsets so they don't stack.
+  const sIdx = typeof styleIndex === 'number' ? styleIndex : 0;
+  const pHue = typeof hue === 'number' ? hue : 0;
+  const animCars = [
+    { y: trackCenterY - 60, period: 2.6, phase: 0.0,  hue: pHue,                   scale: 0.95 },
+    { y: trackCenterY + 60, period: 3.8, phase: 0.55, hue: (pHue + 210) % 360,     scale: 0.85 },
+  ];
+  for (const c of animCars) {
+    const t = ((titleAnimTime / c.period) + c.phase) % 1;
+    const span = GAME_W + 400;
+    const x = -200 + t * span;
+
+    // Motion streaks trailing the car
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineCap = 'round';
+    for (let s = 0; s < 6; s++) {
+      const sx = x - (50 + s * 32);
+      const sy = c.y + (((s * 17 + titleAnimTime * 40) % 24) - 12);
+      ctx.globalAlpha = 0.26 * (1 - s / 6);
+      ctx.lineWidth = 3 - s * 0.35;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(sx - 60, sy);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Car sprite — rotated π/2 so the nose faces +x (right)
+    ctx.save();
+    ctx.translate(x, c.y);
+    ctx.scale(c.scale, c.scale);
+    drawStyledCar(ctx, 0, 0, Math.PI / 2, sIdx, c.hue, 0.95);
+    ctx.restore();
+  }
+
+  // ── Title text with subtle y-bob ──
+  const titleBob = Math.sin(titleAnimTime * 1.4) * 6;
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 110px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('RACING 2D', cx, GAME_H * 0.36);
+  ctx.fillText('RACING 2D', cx, GAME_H * 0.26 + titleBob);
 
-  // RACE button
-  const raceY = GAME_H * 0.54;
-  ctx.fillStyle = bodyColor || '#e63030';
+  // Subtitle
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.font = '34px sans-serif';
+  ctx.fillText('HOT LAP', cx, GAME_H * 0.26 + titleBob + 78);
+
+  // ── CHOOSE CAR button (neutral dark grey with white outline) ──
+  const carBtnW = 560;
+  const carBtnH = 130;
+  const carBtnY = GAME_H * 0.44;
+  ctx.fillStyle = '#1f1f1f';
   ctx.beginPath();
-  ctx.roundRect(cx - 220, raceY, 440, 120, 20);
+  ctx.roundRect(cx - carBtnW / 2, carBtnY, carBtnW, carBtnH, 22);
   ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+  ctx.lineWidth = 3;
+  ctx.stroke();
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 64px sans-serif';
-  ctx.fillText('RACE', cx, raceY + 60);
+  ctx.font = 'bold 58px sans-serif';
+  ctx.fillText('CHOOSE CAR', cx, carBtnY + carBtnH / 2);
 
-  ctx.fillStyle = '#666';
+  // Version
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
   ctx.font = '24px sans-serif';
-  ctx.fillText('v0.37', cx, GAME_H * 0.92);
+  ctx.fillText('v0.40', cx, GAME_H * 0.97);
 
   ctx.restore();
 
   return {
-    raceBox: { x: cx - 220, y: raceY, w: 440, h: 120 },
+    carBox: { x: cx - carBtnW / 2, y: carBtnY, w: carBtnW, h: carBtnH },
   };
 }
 
@@ -844,74 +925,143 @@ export function drawCrashScreen(ctx) {
  */
 export function drawSteeringWheel(ctx, screenX, screenY, steering, speed) {
   const rotation = steering * Math.PI * 0.75;
-  const w = 240, h = 180;
 
   ctx.save();
-  ctx.globalAlpha = 0.85;
+  ctx.globalAlpha = 0.9;
   ctx.translate(screenX, screenY);
   ctx.rotate(rotation);
 
-  // Main body — rectangular, rounded top
-  ctx.fillStyle = '#1a1a1a';
+  // Central carbon body (stadium) dimensions; wings extend outward beyond this
+  const bw = 210, bh = 140;
+
+  // ── Red paddle shifters peeking out behind the top of each handle ──
+  ctx.fillStyle = '#c1272d';
   ctx.beginPath();
-  ctx.moveTo(-w/2, h*0.15);
-  ctx.lineTo(-w/2, -h*0.2);
-  ctx.quadraticCurveTo(-w/2, -h*0.5, -w*0.3, -h*0.5);
-  ctx.lineTo(w*0.3, -h*0.5);
-  ctx.quadraticCurveTo(w/2, -h*0.5, w/2, -h*0.2);
-  ctx.lineTo(w/2, h*0.15);
-  ctx.quadraticCurveTo(w*0.4, h*0.25, w*0.3, h*0.35);
-  ctx.lineTo(-w*0.3, h*0.35);
-  ctx.quadraticCurveTo(-w*0.4, h*0.25, -w/2, h*0.15);
+  ctx.moveTo(-128, -38);
+  ctx.quadraticCurveTo(-110, -62, -78, -66);
+  ctx.lineTo(-65, -54);
+  ctx.quadraticCurveTo(-102, -48, -120, -28);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(128, -38);
+  ctx.quadraticCurveTo(110, -62, 78, -66);
+  ctx.lineTo(65, -54);
+  ctx.quadraticCurveTo(102, -48, 120, -28);
   ctx.closePath();
   ctx.fill();
 
-  // Grip cutouts
-  ctx.fillStyle = '#333';
+  // ── Central carbon body ──
+  ctx.fillStyle = '#0d0d0d';
   ctx.beginPath();
-  ctx.ellipse(-w*0.42, 0, w*0.07, h*0.26, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(w*0.42, 0, w*0.07, h*0.26, 0, 0, Math.PI * 2);
+  ctx.roundRect(-bw/2, -bh/2, bw, bh, 18);
   ctx.fill();
 
-  // LED strip at top — shows available speed (dims as you turn)
-  const ledY = -h * 0.42;
-  const turnFactor = 1 - Math.abs(steering);  // 1 = straight, 0 = full turn
-  const litCount = Math.round(turnFactor * 9); // 0-9 LEDs lit
-  for (let i = -4; i <= 4; i++) {
-    const idx = Math.abs(i);  // 0-4, center=0
+  // Carbon weave texture — sparse diagonals clipped to the body
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(-bw/2, -bh/2, bw, bh, 18);
+  ctx.clip();
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx.lineWidth = 1;
+  for (let i = -bw; i < bw; i += 6) {
+    ctx.beginPath();
+    ctx.moveTo(i, -bh/2);
+    ctx.lineTo(i + bh, bh/2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(i, bh/2);
+    ctx.lineTo(i + bh, -bh/2);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // ── Curved wing handles (thick stroked C-shapes) ──
+  ctx.lineCap = 'round';
+  // Left handle
+  ctx.strokeStyle = '#0a0a0a';
+  ctx.lineWidth = 32;
+  ctx.beginPath();
+  ctx.moveTo(-100, -38);
+  ctx.quadraticCurveTo(-150, -38, -143, 18);
+  ctx.quadraticCurveTo(-133, 62, -97, 56);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 26;
+  ctx.beginPath();
+  ctx.moveTo(-100, -38);
+  ctx.quadraticCurveTo(-150, -38, -143, 18);
+  ctx.quadraticCurveTo(-133, 62, -97, 56);
+  ctx.stroke();
+  // Right handle (mirrored)
+  ctx.strokeStyle = '#0a0a0a';
+  ctx.lineWidth = 32;
+  ctx.beginPath();
+  ctx.moveTo(100, -38);
+  ctx.quadraticCurveTo(150, -38, 143, 18);
+  ctx.quadraticCurveTo(133, 62, 97, 56);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 26;
+  ctx.beginPath();
+  ctx.moveTo(100, -38);
+  ctx.quadraticCurveTo(150, -38, 143, 18);
+  ctx.quadraticCurveTo(133, 62, 97, 56);
+  ctx.stroke();
+
+  // ── Multicolored rev LED strip across the top of the body ──
+  // Same center-out "available speed" logic as before (dims as you turn),
+  // but now with a rainbow palette — red at the center (low margin), cool
+  // hues toward the outside (high margin).
+  const ledY = -bh * 0.36;
+  const turnFactor = 1 - Math.abs(steering);
+  const litCount = Math.round(turnFactor * 11);  // 0-11 LEDs
+  const ledPalette = ['#ff2020', '#ff6020', '#ffb030', '#ffe040', '#50ff40', '#30d0f0'];
+  for (let i = -5; i <= 5; i++) {
+    const idx = Math.abs(i);  // 0-5, center=0
     const isLit = idx < Math.ceil(litCount / 2);
     if (isLit) {
-      ctx.fillStyle = idx <= 1 ? '#f00' : idx <= 3 ? '#ff0' : '#0f0';
+      ctx.fillStyle = ledPalette[idx];
     } else {
       ctx.fillStyle = '#1a1a1a';
     }
     ctx.beginPath();
-    ctx.arc(i * 15, ledY, 5, 0, Math.PI * 2);
+    ctx.arc(i * 13, ledY, 3.2, 0, Math.PI * 2);
     ctx.fill();
+    if (isLit) {
+      // Soft halo
+      ctx.globalAlpha = 0.25 * 0.9;  // 0.9 = parent wheel alpha
+      ctx.beginPath();
+      ctx.arc(i * 13, ledY, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 0.9;
+    }
   }
 
-  // Center screen
-  ctx.fillStyle = '#111';
+  // ── Central LCD ──
+  const sw = 126, sh = 58;
+  ctx.fillStyle = '#000';
   ctx.beginPath();
-  ctx.roundRect(-51, -27, 102, 48, 6);
+  ctx.roundRect(-sw/2, -sh/2 + 4, sw, sh, 5);
   ctx.fill();
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
 
   // Speed on screen
   ctx.fillStyle = '#0af';
-  ctx.font = 'bold 20px monospace';
+  ctx.font = 'bold 30px monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const kph = Math.round(speed || 0);
-  ctx.fillText(kph + '', 0, -7);
+  ctx.fillText(String(kph), 0, 0);
   ctx.fillStyle = '#888';
-  ctx.font = '12px monospace';
-  ctx.fillText('km/h', 0, 11);
+  ctx.font = 'bold 12px monospace';
+  ctx.fillText('km/h', 0, 22);
 
-  // Top marker
+  // ── Top marker (red notch) for orientation ──
   ctx.fillStyle = '#e63030';
-  ctx.fillRect(-4, -h*0.5 - 4, 9, 9);
+  ctx.fillRect(-3, -bh/2 - 4, 7, 7);
 
   ctx.restore();
 }
