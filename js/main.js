@@ -1,10 +1,10 @@
-import { GAME_W, GAME_H, TILE, FIXED_DT, GHOST_ALPHA } from './constants.js';
+import { GAME_W, GAME_H, TILE, FIXED_DT, GHOST_ALPHA, TRACK_SEEDS } from './constants.js';
 import { generateTrack, buildTrackPath, buildWallPaths, createWallBodies, buildCurbArcs, buildBrakeMarkers } from './track.js';
 import { Camera } from './camera.js';
 import {
   drawTrack, drawCar, drawHUD,
   drawTitleScreen, drawCountdown, drawFinishScreen, drawCrashScreen,
-  drawSteeringWheel, drawMinimap, drawCarSelect,
+  drawSteeringWheel, drawMinimap, drawCarSelect, drawTrackSelect,
   drawPauseButton, drawPauseMenu,
 } from './renderer.js';
 import {
@@ -65,9 +65,40 @@ let world, track, centerLine, walls, wallBodies, curbs, brakeMarkers;
 const screenShake = new ScreenShake();
 const tireSmoke = new TireSmoke();
 let car, ghost, gameState, skidmarks;
-let currentSeed = Date.now();
+let currentTrackIndex = 0;
+let currentSeed = TRACK_SEEDS[currentTrackIndex];
 let currentSeedAlpha = seedToAlpha(currentSeed);
 let trackStartAngle = 0;
+
+// Track select cache — built lazily on first entry to 'trackselect' state
+let cachedTrackPaths = null; // [{ track, centerLine, startAngle }, ...]
+let cachedBestTimes = null;  // [number|null, ...] — parallel to TRACK_SEEDS
+
+function ensureTrackCache() {
+  if (cachedTrackPaths === null) {
+    cachedTrackPaths = TRACK_SEEDS.map(seed => {
+      const t = generateTrack(seed);
+      const cl = buildTrackPath(t);
+      const gridTile = t.tiles[0];
+      const sa = dirAngles[gridTile.dir];
+      return { track: t, centerLine: cl, startAngle: sa };
+    });
+  }
+  refreshBestTimes();
+}
+
+function refreshBestTimes() {
+  cachedBestTimes = TRACK_SEEDS.map(seed => {
+    try {
+      const raw = localStorage.getItem(`racing-2d:ghost:${seed}`);
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (data && data.time != null) return data.time;
+      }
+    } catch (_) {}
+    return null;
+  });
+}
 
 function initTrack(seed) {
   currentSeed = seed;
@@ -84,8 +115,7 @@ function initTrack(seed) {
   curbs = buildCurbArcs(track);
   brakeMarkers = buildBrakeMarkers(track);
 
-  // Ghost system for this seed (TEMP: clear old ghost data)
-  try { localStorage.removeItem(`racing-2d:ghost:${seed}`); } catch(_) {}
+  // Ghost system for this seed — persists across sessions
   ghost = new Ghost(seed);
 
   // Game state
@@ -177,6 +207,7 @@ function checkFinishLine() {
 let carConfig = loadCarConfig();
 let carSelectHitAreas = null;
 let titleHitAreas = null;
+let trackSelectHitAreas = null;
 let finishHitAreas = null;
 let crashHitAreas = null;
 let pauseButtonBox = null;
@@ -249,24 +280,36 @@ function handleClick(clientX, clientY) {
     return;
   }
 
+  // Track select
+  if (gameState.state === 'trackselect') {
+    handleTrackSelectClick(clientX, clientY);
+    return;
+  }
+
   if (gameState.state === 'title' && titleHitAreas) {
     if (hitTest(x, y, titleHitAreas.raceBox)) {
-      gameState.startCountdown();
-    } else if (hitTest(x, y, titleHitAreas.carBox)) {
+      playClick();
+      hapticTap();
       gameState.state = 'carselect';
     }
   } else if (gameState.state === 'finished' && finishHitAreas) {
     if (hitTest(x, y, finishHitAreas.retryBox)) {
+      playClick();
+      hapticTap();
       ghost.resetRecording();
       spawnCar();
       gameState.startCountdown();
     } else if (hitTest(x, y, finishHitAreas.nextBox)) {
-      initTrack(Date.now());
+      playClick();
+      hapticTap();
+      currentTrackIndex = (currentTrackIndex + 1) % TRACK_SEEDS.length;
+      initTrack(TRACK_SEEDS[currentTrackIndex]);
       gameState.startCountdown();
     } else if (hitTest(x, y, finishHitAreas.menuBox)) {
-      ghost.resetRecording();
-      spawnCar();
-      gameState.reset();
+      playClick();
+      hapticTap();
+      ensureTrackCache();
+      gameState.state = 'trackselect';
     }
   } else if (gameState.state === 'crashed' && crashHitAreas) {
     if (hitTest(x, y, crashHitAreas.retryBox)) {
@@ -306,7 +349,10 @@ function handleCarSelectClick(clientX, clientY) {
   // Check GO button
   const go = carSelectHitAreas.goBox;
   if (x >= go.x && x <= go.x + go.w && y >= go.y && y <= go.y + go.h) {
-    gameState.startCountdown();
+    playClick();
+    hapticTap();
+    ensureTrackCache();
+    gameState.state = 'trackselect';
     return;
   }
 }
@@ -322,6 +368,31 @@ function handleCarSelectDrag(clientX, clientY) {
 
 function handleCarSelectRelease() {
   isDraggingSlider = false;
+}
+
+function handleTrackSelectClick(clientX, clientY) {
+  if (!trackSelectHitAreas) return;
+  const { x, y } = clientToGame(clientX, clientY);
+
+  // Back button
+  if (hitTest(x, y, trackSelectHitAreas.backBox)) {
+    playClick();
+    hapticTap();
+    gameState.state = 'carselect';
+    return;
+  }
+
+  // Tile grid
+  for (const box of trackSelectHitAreas.tileBoxes) {
+    if (x >= box.x && x <= box.x + box.w && y >= box.y && y <= box.y + box.h) {
+      playClick();
+      hapticTap();
+      currentTrackIndex = box.index;
+      initTrack(TRACK_SEEDS[currentTrackIndex]);
+      gameState.startCountdown();
+      return;
+    }
+  }
 }
 
 // Track pointer down position to distinguish taps from drags
@@ -492,7 +563,7 @@ function render() {
   drawGrass(ctx, camera.x, camera.y, camera.angle);
 
   // Track
-  drawTrack(ctx, track, walls, centerLine, curbs, brakeMarkers);
+  drawTrack(ctx, track, walls, centerLine, curbs, brakeMarkers, currentTrackIndex);
 
   // Track surface noise
   drawTrackNoise(ctx, centerLine);
@@ -554,6 +625,8 @@ function render() {
     titleHitAreas = drawTitleScreen(ctx, currentSeedAlpha, bodyColor, 1/60);
   } else if (state === 'carselect') {
     carSelectHitAreas = drawCarSelect(ctx, carConfig.styleIndex, carConfig.hue);
+  } else if (state === 'trackselect') {
+    trackSelectHitAreas = drawTrackSelect(ctx, cachedTrackPaths, currentTrackIndex, cachedBestTimes);
   } else if (state === 'countdown') {
     drawCountdown(ctx, gameState.countdownNumber);
   } else if (state === 'racing' && gameState.raceTime < 500) {

@@ -29,7 +29,7 @@ function pillRect(ctx, cx, cy, w, h, r) {
 
 // ── Track rendering ───────────────────────────────────────────────────────────
 
-export function drawTrack(ctx, track, walls, centerLine, curbs, brakeMarkers) {
+export function drawTrack(ctx, track, walls, centerLine, curbs, brakeMarkers, trackIndex) {
   const T = TILE;
 
   // 1. Asphalt fill — draw as thick stroke along center line
@@ -237,6 +237,30 @@ export function drawTrack(ctx, track, walls, centerLine, curbs, brakeMarkers) {
       ctx.restore();
     }
   }
+
+  // In-world track label ("Track NN") painted on the tile after start/finish.
+  // Tile 0 is grid, tile 1 is start/finish; tile 2 is the first tile of the lap.
+  if (typeof trackIndex === 'number' && track.tiles.length >= 3) {
+    const labelTile = track.tiles[2];
+    const wcx = (labelTile.gx + 0.5) * TILE;
+    const wcy = (labelTile.gy + 0.5) * TILE;
+    const fwd = DIR_VEC[labelTile.dir];
+    // Rotation such that canvas -y (text letter-up direction) points along
+    // the fwd vector. Derivation: canvas -y after ctx.rotate(θ) becomes
+    // (sin θ, -cos θ) in world space; set equal to fwd → θ = atan2(fwd.x, -fwd.y).
+    const textAngle = Math.atan2(fwd.x, -fwd.y);
+
+    ctx.save();
+    ctx.translate(wcx, wcy);
+    ctx.rotate(textAngle);
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.font = 'bold 90px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const labelStr = 'TRACK ' + String(trackIndex + 1).padStart(2, '0');
+    ctx.fillText(labelStr, 0, 0);
+    ctx.restore();
+  }
 }
 
 // ── Car rendering ─────────────────────────────────────────────────────────────
@@ -423,40 +447,26 @@ export function drawTitleScreen(ctx, seed, bodyColor, dt) {
   ctx.font = 'bold 110px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('RACING 2D', cx, GAME_H * 0.32);
+  ctx.fillText('RACING 2D', cx, GAME_H * 0.36);
 
   // RACE button
-  const raceY = GAME_H * 0.48;
+  const raceY = GAME_H * 0.54;
   ctx.fillStyle = bodyColor || '#e63030';
   ctx.beginPath();
-  ctx.roundRect(cx - 220, raceY, 440, 100, 18);
+  ctx.roundRect(cx - 220, raceY, 440, 120, 20);
   ctx.fill();
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 56px sans-serif';
-  ctx.fillText('RACE', cx, raceY + 50);
-
-  // CHOOSE CAR button
-  const carY = GAME_H * 0.58;
-  ctx.fillStyle = 'rgba(255,255,255,0.12)';
-  ctx.beginPath();
-  ctx.roundRect(cx - 220, carY, 440, 80, 18);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-  ctx.fillStyle = '#ccc';
-  ctx.font = '40px sans-serif';
-  ctx.fillText('CHOOSE CAR', cx, carY + 42);
+  ctx.font = 'bold 64px sans-serif';
+  ctx.fillText('RACE', cx, raceY + 60);
 
   ctx.fillStyle = '#666';
   ctx.font = '24px sans-serif';
-  ctx.fillText('v0.30 — seed: ' + seed, cx, GAME_H * 0.92);
+  ctx.fillText('v0.31', cx, GAME_H * 0.92);
 
   ctx.restore();
 
   return {
-    raceBox: { x: cx - 220, y: raceY, w: 440, h: 100 },
-    carBox: { x: cx - 220, y: carY, w: 440, h: 80 },
+    raceBox: { x: cx - 220, y: raceY, w: 440, h: 120 },
   };
 }
 
@@ -572,7 +582,7 @@ export function drawFinishScreen(ctx, raceTime, delta, isNewRecord) {
   ctx.font = '36px sans-serif';
   ctx.fillText('NEXT TRACK', cx, nextY + 37);
 
-  // MAIN MENU button
+  // TRACKS button (back to track select)
   const menuY = GAME_H * 0.82;
   ctx.fillStyle = 'rgba(255,255,255,0.06)';
   ctx.beginPath(); ctx.roundRect(cx - 200, menuY, 400, 60, 16); ctx.fill();
@@ -580,7 +590,7 @@ export function drawFinishScreen(ctx, raceTime, delta, isNewRecord) {
   ctx.lineWidth = 1; ctx.stroke();
   ctx.fillStyle = '#888';
   ctx.font = '32px sans-serif';
-  ctx.fillText('MAIN MENU', cx, menuY + 33);
+  ctx.fillText('TRACKS', cx, menuY + 33);
 
   ctx.restore();
   return {
@@ -1072,4 +1082,155 @@ export function drawPauseMenu(ctx, sfxOn, hapticsOn) {
   ctx.restore();
 
   return { sfxToggle, hapticsToggle, resumeBtn, retryBtn, menuBtn };
+}
+
+// ── Track selection screen ──────────────────────────────────────────────────
+
+/**
+ * Draw a small minimap of a track's center line into a rectangular region.
+ * Scales and centers the track to fill the rect with padding.
+ */
+function drawMinimapIntoRect(ctx, centerLine, startAngle, x, y, w, h) {
+  // Compute bounds
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const p of centerLine) {
+    if (p.x < minX) minX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y > maxY) maxY = p.y;
+  }
+  const pad = TILE;
+  minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+
+  const trackW = maxX - minX;
+  const trackH = maxY - minY;
+  // Account for rotation by using the larger dimension both ways
+  const maxDim = Math.max(trackW, trackH);
+  const inset = 16;
+  const scale = Math.min((w - inset * 2) / maxDim, (h - inset * 2) / maxDim);
+  const trackCx = (minX + trackW / 2);
+  const trackCy = (minY + trackH / 2);
+
+  ctx.save();
+  // Center of the destination rect
+  ctx.translate(x + w / 2, y + h / 2);
+  // Rotate so start direction points up
+  ctx.rotate(-(startAngle || 0));
+
+  const ox = -trackCx * scale;
+  const oy = -trackCy * scale;
+
+  // Track path stroke
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = Math.max(2, TILE * scale * 0.8);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  for (let i = 0; i < centerLine.length; i++) {
+    const px = centerLine[i].x * scale + ox;
+    const py = centerLine[i].y * scale + oy;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+/**
+ * Draw the track selection screen.
+ * @param {Array<{track, centerLine, startAngle}>} trackPaths - cached paths (length 20)
+ * @param {number} currentIndex - currently selected/last-played track index
+ * @param {Array<number|null>} bestTimes - best time in ms per track, or null
+ * @returns {{ tileBoxes: {x,y,w,h,index}[], backBox: {x,y,w,h} }} hit areas
+ */
+export function drawTrackSelect(ctx, trackPaths, currentIndex, bestTimes) {
+  const cx = GAME_W / 2;
+
+  // Dark overlay
+  ctx.fillStyle = 'rgba(0,0,0,0.88)';
+  ctx.fillRect(0, 0, GAME_W, GAME_H);
+
+  // Back button (top-left)
+  const backX = 30, backY = 30, backW = 140, backH = 70;
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.beginPath(); ctx.roundRect(backX, backY, backW, backH, 12); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+  ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 36px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('← BACK', backX + backW / 2, backY + backH / 2);
+
+  // Title
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 64px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('CHOOSE TRACK', cx, 140);
+
+  // Grid: 4 cols x 5 rows
+  const cols = 4;
+  const rows = 5;
+  const gap = 20;
+  const tileSize = 230;
+  const gridW = cols * tileSize + (cols - 1) * gap;
+  const gridLeft = (GAME_W - gridW) / 2;
+  const gridTop = 220;
+
+  const tileBoxes = [];
+
+  for (let i = 0; i < trackPaths.length; i++) {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const tx = gridLeft + col * (tileSize + gap);
+    const ty = gridTop + row * (tileSize + gap);
+
+    // Tile background
+    ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    ctx.beginPath(); ctx.roundRect(tx, ty, tileSize, tileSize, 12); ctx.fill();
+
+    // Border (thicker for current)
+    if (i === currentIndex) {
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 4;
+    } else {
+      ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+      ctx.lineWidth = 1;
+    }
+    ctx.beginPath(); ctx.roundRect(tx, ty, tileSize, tileSize, 12); ctx.stroke();
+
+    // Minimap (top ~70% of tile)
+    const mapH = Math.floor(tileSize * 0.68);
+    const path = trackPaths[i];
+    drawMinimapIntoRect(ctx, path.centerLine, path.startAngle, tx, ty, tileSize, mapH);
+
+    // Number label (top-left corner)
+    const label = String(i + 1).padStart(2, '0');
+    ctx.fillStyle = i === currentIndex ? '#fff' : '#ccc';
+    ctx.font = 'bold 34px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(label, tx + 12, ty + 10);
+
+    // Best time (bottom of tile)
+    const bt = bestTimes && bestTimes[i];
+    const timeText = bt !== null && bt !== undefined
+      ? formatTime(bt / 1000)
+      : '--:--.--';
+    ctx.fillStyle = bt != null ? '#f0c040' : '#666';
+    ctx.font = 'bold 28px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(timeText, tx + tileSize / 2, ty + tileSize - 14);
+
+    tileBoxes.push({ x: tx, y: ty, w: tileSize, h: tileSize, index: i });
+  }
+
+  return {
+    tileBoxes,
+    backBox: { x: backX, y: backY, w: backW, h: backH },
+  };
 }
