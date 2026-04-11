@@ -306,7 +306,9 @@ function handleCarSelectClick(clientX, clientY) {
   // Check GO button
   const go = carSelectHitAreas.goBox;
   if (x >= go.x && x <= go.x + go.w && y >= go.y && y <= go.y + go.h) {
-    gameState.startCountdown();
+    playClick();
+    hapticTap();
+    gameState.state = 'trackselect';
     return;
   }
 }
