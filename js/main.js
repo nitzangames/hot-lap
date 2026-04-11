@@ -251,8 +251,8 @@ function handleClick(clientX, clientY) {
 
   if (gameState.state === 'title' && titleHitAreas) {
     if (hitTest(x, y, titleHitAreas.raceBox)) {
-      gameState.startCountdown();
-    } else if (hitTest(x, y, titleHitAreas.carBox)) {
+      playClick();
+      hapticTap();
       gameState.state = 'carselect';
     }
   } else if (gameState.state === 'finished' && finishHitAreas) {

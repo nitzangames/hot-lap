@@ -423,40 +423,26 @@ export function drawTitleScreen(ctx, seed, bodyColor, dt) {
   ctx.font = 'bold 110px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('RACING 2D', cx, GAME_H * 0.32);
+  ctx.fillText('RACING 2D', cx, GAME_H * 0.36);
 
   // RACE button
-  const raceY = GAME_H * 0.48;
+  const raceY = GAME_H * 0.54;
   ctx.fillStyle = bodyColor || '#e63030';
   ctx.beginPath();
-  ctx.roundRect(cx - 220, raceY, 440, 100, 18);
+  ctx.roundRect(cx - 220, raceY, 440, 120, 20);
   ctx.fill();
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 56px sans-serif';
-  ctx.fillText('RACE', cx, raceY + 50);
-
-  // CHOOSE CAR button
-  const carY = GAME_H * 0.58;
-  ctx.fillStyle = 'rgba(255,255,255,0.12)';
-  ctx.beginPath();
-  ctx.roundRect(cx - 220, carY, 440, 80, 18);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-  ctx.fillStyle = '#ccc';
-  ctx.font = '40px sans-serif';
-  ctx.fillText('CHOOSE CAR', cx, carY + 42);
+  ctx.font = 'bold 64px sans-serif';
+  ctx.fillText('RACE', cx, raceY + 60);
 
   ctx.fillStyle = '#666';
   ctx.font = '24px sans-serif';
-  ctx.fillText('v0.30 — seed: ' + seed, cx, GAME_H * 0.92);
+  ctx.fillText('v0.31', cx, GAME_H * 0.92);
 
   ctx.restore();
 
   return {
-    raceBox: { x: cx - 220, y: raceY, w: 440, h: 100 },
-    carBox: { x: cx - 220, y: carY, w: 440, h: 80 },
+    raceBox: { x: cx - 220, y: raceY, w: 440, h: 120 },
   };
 }
 
