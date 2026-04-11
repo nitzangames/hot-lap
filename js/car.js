@@ -33,6 +33,11 @@ export class Car {
     this.crashed = false;
     this.finished = false;
     this.tickCount = 0;
+    // Glancing-wall bounce state — nonzero timer means input is locked and
+    // the car is coasting with a reflected bounce velocity.
+    this._bounceTimer = 0;
+    this._bounceVelX = 0;
+    this._bounceVelY = 0;
   }
 
   /**
@@ -58,6 +63,9 @@ export class Car {
     this.crashed = false;
     this.finished = false;
     this.tickCount = 0;
+    this._bounceTimer = 0;
+    this._bounceVelX = 0;
+    this._bounceVelY = 0;
   }
 
   /**
@@ -69,6 +77,24 @@ export class Car {
 
     this.tickCount++;
     this._wallHitThisTick = false;
+
+    // 0. Bounce lockout — after a glancing wall hit, input is ignored for
+    //    half a second and the car coasts along the reflected velocity with
+    //    a gentle per-tick decay. This gives a visible "bounce off the wall"
+    //    moment before normal control resumes.
+    if (this._bounceTimer > 0) {
+      this._bounceTimer -= FIXED_DT;
+      const decay = 0.985;
+      this._bounceVelX *= decay;
+      this._bounceVelY *= decay;
+      this.body.velocity.set(this._bounceVelX, this._bounceVelY);
+      this.body.angularVelocity = 0;
+      this.speed = Math.sqrt(
+        this._bounceVelX * this._bounceVelX +
+        this._bounceVelY * this._bounceVelY
+      );
+      return;
+    }
 
     // 1. Apply steering — directly modify body.angle (capsule-oriented)
     this.body.angle += steering * TURN_RATE * FIXED_DT;
@@ -115,6 +141,17 @@ export class Car {
    */
   onWallCollision(contact) {
     if (!this.body || this.crashed || this._wallHitThisTick) return;
+    // While a bounce is in progress, the engine keeps firing contacts as the
+    // car separates from the wall over several ticks. Ignore them — the
+    // reflection we computed on the first contact is the authority, and
+    // re-reflecting the already-moving-away velocity would just ping-pong.
+    // Force velocity back to the stored bounce in case the engine's impulse
+    // mutated it during this step.
+    if (this._bounceTimer > 0) {
+      this.body.velocity.set(this._bounceVelX, this._bounceVelY);
+      this._wallHitThisTick = true;
+      return;
+    }
     this._wallHitThisTick = true;
 
     // Forward direction — see top-of-file note on the angle offset
@@ -135,8 +172,43 @@ export class Car {
       this.speed = 0;
       this.body.velocity.set(0, 0);
     } else {
-      // Glancing hit — reduce speed
-      this.speed *= WALL_SPEED_LOSS;
+      // Glancing hit — partial reflection of the car's forward unit vector
+      // across the wall normal. Standard elastic reflection is
+      //     f' = f - 2 (f·n) n            (k = 1, full bounce)
+      // Partial absorption with restitution k keeps only half the
+      // perpendicular-to-wall momentum:
+      //     f' = f - (1 + k) (f·n) n      (here k = 0.5)
+      // which means a 10° incoming angle becomes ~5° outgoing (half the
+      // angle absorbed), while a head-on hit would still be a crash via
+      // the branch above.
+      //
+      // The resulting vector is not unit-length (it's shortened by the
+      // absorbed perpendicular component), so normalize before using it
+      // as the new heading.
+      const preSpeed = this.speed;
+      const fDotN = fx * nx + fy * ny;
+      const BOUNCE_K = 0.5;
+      let reflFx = fx - (1 + BOUNCE_K) * fDotN * nx;
+      let reflFy = fy - (1 + BOUNCE_K) * fDotN * ny;
+      const reflMag = Math.sqrt(reflFx * reflFx + reflFy * reflFy) || 1;
+      reflFx /= reflMag;
+      reflFy /= reflMag;
+
+      // Turn the car to face the reflected heading
+      this.body.angle = Math.atan2(-reflFy, -reflFx);
+      this.body._aabbDirty = true;
+
+      // Light speed loss — the car stays mostly at its pre-collision pace
+      const BOUNCE_DAMPEN = 0.75;
+      const bounceSpeed = preSpeed * BOUNCE_DAMPEN;
+      const rx = reflFx * bounceSpeed;
+      const ry = reflFy * bounceSpeed;
+      this.body.velocity.set(rx, ry);
+
+      this._bounceVelX = rx;
+      this._bounceVelY = ry;
+      this._bounceTimer = 0.5;
+      this.speed = bounceSpeed;
     }
   }
 

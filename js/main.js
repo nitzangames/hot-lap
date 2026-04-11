@@ -19,7 +19,7 @@ import { TopGhost } from './top-ghost.js';
 import { GameState } from './game.js';
 import { World, Vec2 } from '../physics2d/index.js';
 import { SkidMarks } from './skidmarks.js';
-import { ScreenShake, drawGrass, drawTrackNoise, triggerCrashFlash, drawCrashFlash, TireSmoke } from './effects.js';
+import { ScreenShake, drawGrass, drawTrackNoise, triggerCrashFlash, drawCrashFlash, TireSmoke, SparkBurst } from './effects.js';
 import { drawStyledCar, loadCarConfig, saveCarConfig, hueToColors } from './car-styles.js';
 import * as leaderboard from './leaderboard.js';
 
@@ -66,6 +66,7 @@ function alphaToSeed(str) {
 let world, track, centerLine, walls, wallBodies, curbs, brakeMarkers;
 const screenShake = new ScreenShake();
 const tireSmoke = new TireSmoke();
+const sparkBurst = new SparkBurst();
 let car, ghost, gameState, skidmarks;
 let topGhost = null; // TopGhost instance for the current track, or null
 let currentTrackIndex = 0;
@@ -147,8 +148,20 @@ function initTrack(seed) {
     const bIsCar  = b.userData && b.userData.type === 'car';
 
     if ((aIsCar && bIsWall) || (bIsCar && aIsWall)) {
+      // Distinguish a fresh contact from a repeat during bounce separation.
+      // Only spawn sparks / trigger flash / play audio on fresh hits.
+      const isFreshHit = !car.crashed && car._bounceTimer === 0 && !car._wallHitThisTick;
       const wasCrashed = car.crashed;
+      const preSpeed = car.speed;
       car.onWallCollision(contact);
+      if (!isFreshHit) return;
+
+      // Spark burst at the contact point, oriented along the wall normal
+      const cp = contact.contactPoints && contact.contactPoints[0];
+      if (cp) {
+        sparkBurst.burst(cp.x, cp.y, contact.normal.x, contact.normal.y, preSpeed);
+      }
+
       if (car.crashed && !wasCrashed) {
         screenShake.trigger(40);
         triggerCrashFlash();
@@ -184,6 +197,8 @@ function spawnCar() {
   hasLeftStart = false;
   skidmarks = new SkidMarks();
   tireSmoke.clear();
+  sparkBurst.clear();
+  camera.reset();
 }
 
 // ── Input ─────────────────────────────────────────────────────────────────────
@@ -558,6 +573,9 @@ function fixedUpdate() {
     // Tire smoke (wheel spin at low speed)
     tireSmoke.update(car.physX, car.physY, car.physAngle, car.speed, FIXED_DT);
 
+    // Spark particles (wall collisions)
+    sparkBurst.update(FIXED_DT);
+
     // Record ghost
     ghost.record(car.physX, car.physY, car.physAngle);
 
@@ -590,6 +608,7 @@ function fixedUpdate() {
     car.postPhysicsUpdate();
     skidmarks.update(car.physX, car.physY, car.physAngle, input.steering, car.speed);
     tireSmoke.update(car.physX, car.physY, car.physAngle, car.speed, FIXED_DT);
+    sparkBurst.update(FIXED_DT);
 
     // Keep recording ghost
     ghost.record(car.physX, car.physY, car.physAngle);
@@ -678,6 +697,9 @@ function render() {
 
   // Tire smoke (above cars, world space)
   tireSmoke.draw(ctx);
+
+  // Collision sparks (above everything, world space)
+  sparkBurst.draw(ctx);
 
   camera.restore(ctx);
 

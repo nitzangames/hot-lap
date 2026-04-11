@@ -233,6 +233,99 @@ export class TireSmoke {
   }
 }
 
+// ── Spark burst particles (wall collisions) ─────────────────────────────────
+
+/**
+ * Short-lived spark streaks flying off a wall contact point. Used for both
+ * glancing bounces and crashes — the count and velocity scale with impact
+ * speed so a full-speed crash produces more/faster sparks than a gentle graze.
+ *
+ * Particles are drawn as bright short line segments tangent to their
+ * velocity vector, fading alpha → 0 over ~0.3-0.55 s with gentle gravity
+ * and air drag.
+ */
+export class SparkBurst {
+  constructor() {
+    this.maxParticles = 120;
+    this.particles = new Array(this.maxParticles);
+    for (let i = 0; i < this.maxParticles; i++) {
+      this.particles[i] = { x: 0, y: 0, vx: 0, vy: 0, life: 0, maxLife: 0, hue: 0 };
+    }
+    this.writeIdx = 0;
+  }
+
+  clear() {
+    for (let i = 0; i < this.maxParticles; i++) this.particles[i].life = 0;
+  }
+
+  /**
+   * Spawn a burst of sparks at (x,y) flying roughly in direction (nx,ny)
+   * inside a ~120° cone, with speed scaling by impact speed.
+   */
+  burst(x, y, nx, ny, impactSpeed) {
+    const s = Math.max(0, Math.min(1, impactSpeed / MAX_SPEED));
+    const count = Math.floor(10 + s * 18); // 10-28 sparks
+    const baseAngle = Math.atan2(ny, nx);
+    for (let i = 0; i < count; i++) {
+      const p = this.particles[this.writeIdx];
+      this.writeIdx = (this.writeIdx + 1) % this.maxParticles;
+      // Slight position jitter around the contact point
+      p.x = x + (Math.random() - 0.5) * 10;
+      p.y = y + (Math.random() - 0.5) * 10;
+      // Cone: ±60° around (nx,ny)
+      const spread = (Math.random() - 0.5) * Math.PI * (2 / 3);
+      const a = baseAngle + spread;
+      const speed = 240 + Math.random() * 360 + s * 300;
+      p.vx = Math.cos(a) * speed;
+      p.vy = Math.sin(a) * speed;
+      p.life = 0.28 + Math.random() * 0.3;
+      p.maxLife = p.life;
+      // Hue from pale yellow (bright, hot) to orange (cooler)
+      p.hue = 38 + Math.random() * 18;
+    }
+  }
+
+  update(dt) {
+    for (let i = 0; i < this.maxParticles; i++) {
+      const p = this.particles[i];
+      if (p.life <= 0) continue;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      // Air drag
+      p.vx *= 0.90;
+      p.vy *= 0.90;
+      // Subtle "gravity" (downward-ish bias, stylized)
+      p.vy += 120 * dt;
+      p.life -= dt;
+    }
+  }
+
+  /** Draw all live sparks. Called in world space. */
+  draw(ctx) {
+    ctx.save();
+    ctx.lineCap = 'round';
+    for (let i = 0; i < this.maxParticles; i++) {
+      const p = this.particles[i];
+      if (p.life <= 0) continue;
+      const t = p.life / p.maxLife;
+      // Trail length follows velocity; fade as life drains
+      const vmag = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+      if (vmag < 1) continue;
+      const streak = Math.min(18, vmag * 0.016);
+      const ux = p.vx / vmag;
+      const uy = p.vy / vmag;
+      const lightness = 60 + t * 30;  // 60-90% — bright early, still bright fading
+      ctx.strokeStyle = `hsla(${p.hue}, 100%, ${lightness}%, ${t})`;
+      ctx.lineWidth = 1.5 + t * 2;
+      ctx.beginPath();
+      ctx.moveTo(p.x - ux * streak, p.y - uy * streak);
+      ctx.lineTo(p.x + ux * streak * 0.35, p.y + uy * streak * 0.35);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
 function makeSmokeSprite(size) {
   const c = document.createElement('canvas');
   c.width = size;
