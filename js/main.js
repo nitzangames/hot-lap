@@ -280,6 +280,12 @@ function handleClick(clientX, clientY) {
     return;
   }
 
+  // Track select
+  if (gameState.state === 'trackselect') {
+    handleTrackSelectClick(clientX, clientY);
+    return;
+  }
+
   if (gameState.state === 'title' && titleHitAreas) {
     if (hitTest(x, y, titleHitAreas.raceBox)) {
       playClick();
@@ -356,6 +362,31 @@ function handleCarSelectDrag(clientX, clientY) {
 
 function handleCarSelectRelease() {
   isDraggingSlider = false;
+}
+
+function handleTrackSelectClick(clientX, clientY) {
+  if (!trackSelectHitAreas) return;
+  const { x, y } = clientToGame(clientX, clientY);
+
+  // Back button
+  if (hitTest(x, y, trackSelectHitAreas.backBox)) {
+    playClick();
+    hapticTap();
+    gameState.state = 'carselect';
+    return;
+  }
+
+  // Tile grid
+  for (const box of trackSelectHitAreas.tileBoxes) {
+    if (x >= box.x && x <= box.x + box.w && y >= box.y && y <= box.y + box.h) {
+      playClick();
+      hapticTap();
+      currentTrackIndex = box.index;
+      initTrack(TRACK_SEEDS[currentTrackIndex]);
+      gameState.startCountdown();
+      return;
+    }
+  }
 }
 
 // Track pointer down position to distinguish taps from drags
