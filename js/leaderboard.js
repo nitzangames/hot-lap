@@ -161,6 +161,7 @@ export async function submitIfBest(trackIndex, timeMs, frames, extraMetadata) {
   }
 
   try {
+    console.log("submitScore: signed in?", isSignedIn(), "board:", boardName(trackIndex), "time:", timeMs);
     const result = await window.PlaySDK.submitScore(
       boardName(trackIndex),
       timeMs,
@@ -168,12 +169,18 @@ export async function submitIfBest(trackIndex, timeMs, frames, extraMetadata) {
       metadata,
       attachment
     );
+    console.log("submitScore result:", JSON.stringify(result));
+    if (!result) {
+      document.title = "submit failed: signedIn=" + isSignedIn() + " token=" + !!(window.PlaySDK && window.PlaySDK.isSignedIn);
+    }
     if (result && result.blob_stored === true) {
       // We're the new top holder — clear cache so the next race re-fetches.
       clearTopForTrack(trackIndex);
     }
     return result || null;
-  } catch (_) {
+  } catch (e) {
+    console.error("submitIfBest error:", e);
+    document.title = "submit error: " + e.message;
     return null;
   }
 }
