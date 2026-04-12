@@ -517,12 +517,12 @@ export function drawTitleScreen(ctx, dt, styleIndex, hue) {
   ctx.font = 'bold 110px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('RACING 2D', cx, GAME_H * 0.26 + titleBob);
+  ctx.fillText('HOT LAP', cx, GAME_H * 0.26 + titleBob);
 
   // Subtitle
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
   ctx.font = '34px sans-serif';
-  ctx.fillText('HOT LAP', cx, GAME_H * 0.26 + titleBob + 78);
+  ctx.fillText('CHASE THE GHOST', cx, GAME_H * 0.26 + titleBob + 78);
 
   // ── CHOOSE CAR button (neutral dark grey with white outline) ──
   const carBtnW = 560;
