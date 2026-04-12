@@ -1298,20 +1298,21 @@ export function drawCarSelect(ctx, selectedStyle, hue) {
   ctx.arc(thumbX, sliderY + sliderH / 2, 14, 0, Math.PI * 2);
   ctx.fill();
 
-  // --- RACE button ---
+  // --- TRACK SELECTION button ---
   const goY = sliderY + sliderH + 80;
+  const goW = 520;
   ctx.fillStyle = bodyColor;
   ctx.beginPath();
-  ctx.roundRect(cx - 200, goY, 400, 90, 18);
+  ctx.roundRect(cx - goW / 2, goY, goW, 90, 18);
   ctx.fill();
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 52px sans-serif';
+  ctx.font = 'bold 44px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('RACE!', cx, goY + 45);
+  ctx.fillText('TRACK SELECTION', cx, goY + 45);
 
   const sliderBox = { x: sliderX, y: sliderY - 10, w: sliderW, h: sliderH + 20 };
-  const goBox = { x: cx - 200, y: goY, w: 400, h: 90 };
+  const goBox = { x: cx - goW / 2, y: goY, w: goW, h: 90 };
 
   return { styleBoxes, sliderBox, goBox };
 }
