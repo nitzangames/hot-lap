@@ -184,23 +184,26 @@ export async function submitIfBest(trackIndex, timeMs, frames, extraMetadata) {
  * @param {number} trackIndex
  * @returns {Promise<{top:Array, nearby:Array, total:number, hasAttachment:boolean}|null>}
  */
-export async function fetchFinishPanel(trackIndex) {
+export async function fetchFinishPanel(trackIndex, raceTimeMs) {
   if (!hasSdk()) return null;
   const sdk = window.PlaySDK;
   const board = boardName(trackIndex);
   try {
-    // Fetch top-N and around-me in parallel.
-    const [topResp, aroundResp] = await Promise.all([
+    // Fetch top-N, around-me, and a fresh preview rank in parallel.
+    const [topResp, aroundResp, freshPreview] = await Promise.all([
       sdk.getLeaderboard(board, LEADERBOARD_TOP_COUNT),
       isSignedIn()
         ? sdk.getLeaderboardAroundMe(board, LEADERBOARD_NEARBY_COUNT)
+        : Promise.resolve(null),
+      raceTimeMs != null
+        ? sdk.previewRank(board, raceTimeMs, 'asc').catch(() => null)
         : Promise.resolve(null),
     ]);
     const top = (topResp && topResp.entries) ? topResp.entries : [];
     const total = (topResp && topResp.total) || 0;
     const hasAttachment = !!(topResp && topResp.has_top_attachment);
     const nearby = (aroundResp && aroundResp.entries) ? aroundResp.entries : [];
-    const panel = { top, nearby, total, hasAttachment };
+    const panel = { top, nearby, total, hasAttachment, freshPreviewRank: freshPreview };
     cachedLeaderboardPanel = panel;
     return panel;
   } catch (_) {

@@ -542,7 +542,7 @@ export function drawTitleScreen(ctx, dt, styleIndex, hue) {
   // Version
   ctx.fillStyle = 'rgba(255,255,255,0.35)';
   ctx.font = '24px sans-serif';
-  ctx.fillText('v0.53', cx, GAME_H * 0.97);
+  ctx.fillText('v0.54', cx, GAME_H * 0.97);
 
   ctx.restore();
 
@@ -758,11 +758,15 @@ export function drawFinishScreen(ctx, raceTime, delta, isNewRecord, lb) {
         ctx.textAlign = 'right';
         ctx.fillText('RANK ' + myEntry.rank + ' / ' + data.total, panelX + panelW - 30, headerY);
       }
-    } else if (panelOpts.myPreviewRank) {
-      ctx.fillStyle = '#888';
-      ctx.font = 'bold 26px sans-serif';
-      ctx.textAlign = 'right';
-      ctx.fillText('#' + panelOpts.myPreviewRank.rank + ' / ' + panelOpts.myPreviewRank.total, panelX + panelW - 30, headerY);
+    } else {
+      // Use fresh preview rank from the finish panel fetch (not the stale cache from track select)
+      const pr = data.freshPreviewRank || panelOpts.myPreviewRank;
+      if (pr) {
+        ctx.fillStyle = '#888';
+        ctx.font = 'bold 26px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText('#' + pr.rank + ' / ' + pr.total, panelX + panelW - 30, headerY);
+      }
     }
 
     // Top N entries
@@ -817,8 +821,9 @@ export function drawFinishScreen(ctx, raceTime, delta, isNewRecord, lb) {
       ctx.font = 'bold 32px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      if (panelOpts.myPreviewRank) {
-        ctx.fillText('Your time would rank #' + panelOpts.myPreviewRank.rank + ' / ' + panelOpts.myPreviewRank.total, panelX + panelW / 2, nearbyTop + 50);
+      const pr = data.freshPreviewRank || panelOpts.myPreviewRank;
+      if (pr) {
+        ctx.fillText('Your time would rank #' + pr.rank + ' / ' + pr.total, panelX + panelW / 2, nearbyTop + 50);
       } else {
         ctx.fillText('Leaderboard active', panelX + panelW / 2, nearbyTop + 50);
       }

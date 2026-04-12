@@ -646,7 +646,7 @@ function fixedUpdate() {
           { styleIndex: carConfig.styleIndex, hue: carConfig.hue }
         ).catch((e) => { console.error("submitIfBest catch:", e); });
       }
-      leaderboard.fetchFinishPanel(currentTrackIndex).catch(() => {});
+      leaderboard.fetchFinishPanel(currentTrackIndex, gameState.raceTime).catch(() => {});
     }
   }
   // title, finished, crashed: no physics
