@@ -37,12 +37,18 @@ export const FIXED_DT = 1 / 60;
 export const COUNTDOWN_SECONDS = 3;
 
 // Fixed roster of 20 track seeds. Order is stable; tracks are identified
-// by index (0-19) throughout the app. Seeds chosen randomly once.
+// by index (0-19) throughout the app. Seeds were brute-force selected
+// against the track generator so each slot has a specific turn count,
+// gradually increasing with the track index:
+//   Tracks 01-02: 6 turns    Tracks 03-04: 8 turns
+//   Tracks 05-06: 10 turns   Tracks 07-08: 12 turns
+//   Tracks 09-12: 14 turns   Tracks 13-16: 16 turns
+//   Tracks 17-18: 18 turns   Tracks 19-20: 20 turns
 export const TRACK_SEEDS = [
-  3536688103, 1436850013, 2404477373, 2891183426, 2190564216,
-  1357795990, 3538153913, 3380586140, 2870132872, 1429483613,
-   545496861, 1156852666, 2730074476, 3217832626, 2924474606,
-   139478688, 1519839472, 3744827128,  611838112,   41266754,
+  1000000502, 1000000560, 1000000002, 1000000005, 1000000000,
+  1000000003, 1000000001, 1000000008, 1000000004, 1000000020,
+  1000000023, 1000000029, 1000000012, 1000000017, 1000000024,
+  1000000039, 1000000055, 1000000071, 1000000150, 1000000207,
 ];
 
 // Leaderboard
