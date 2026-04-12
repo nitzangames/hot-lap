@@ -542,7 +542,7 @@ export function drawTitleScreen(ctx, dt, styleIndex, hue) {
   // Version
   ctx.fillStyle = 'rgba(255,255,255,0.35)';
   ctx.font = '24px sans-serif';
-  ctx.fillText('v0.51', cx, GAME_H * 0.97);
+  ctx.fillText('v0.52', cx, GAME_H * 0.97);
 
   ctx.restore();
 

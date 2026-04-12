@@ -1,7 +1,7 @@
 {
   "slug": "racing-2d",
-  "title": "Racing 2D",
-  "description": "Top-down formula racing time trial. Race against your ghost on randomly generated tracks.",
+  "title": "Hot Lap",
+  "description": "Top-down formula racing time trial. 20 tracks, global leaderboards, and ghost replays. Chase the ghost!",
   "tags": ["racing", "time-trial"],
   "author": "Nitzan Wilnai",
   "thumbnail": "thumbnail.png"
