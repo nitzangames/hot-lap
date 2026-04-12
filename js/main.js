@@ -782,6 +782,7 @@ function render() {
         signedIn: leaderboard.isSignedIn(),
         myPreviewRank: previewRanks ? previewRanks[currentTrackIndex] : null,
         currentTrackIndex,
+        diagnostics: leaderboard.getDiagnostics(),
       }
     );
   } else if (state === 'crashed') {

@@ -542,7 +542,7 @@ export function drawTitleScreen(ctx, dt, styleIndex, hue) {
   // Version
   ctx.fillStyle = 'rgba(255,255,255,0.35)';
   ctx.font = '24px sans-serif';
-  ctx.fillText('v0.45', cx, GAME_H * 0.97);
+  ctx.fillText('v0.46', cx, GAME_H * 0.97);
 
   ctx.restore();
 
@@ -748,6 +748,17 @@ export function drawFinishScreen(ctx, raceTime, delta, isNewRecord, lb) {
     ctx.textBaseline = 'middle';
     const trackLabel = 'TRACK ' + String(panelOpts.currentTrackIndex + 1).padStart(2, '0') + ' LEADERBOARD';
     ctx.fillText(trackLabel, panelX + 30, headerY);
+
+    // Debug diagnostics — rendered on screen for mobile where dev tools aren't available
+    if (panelOpts.diagnostics) {
+      const d = panelOpts.diagnostics;
+      ctx.fillStyle = '#f0c040';
+      ctx.font = '18px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('sdk=' + d.hasSdk + ' sign=' + d.signedIn + ' slug=' + d.slugMatch, panelX + 30, headerY + 30);
+      ctx.fillText('top=' + data.top.length + ' nearby=' + data.nearby.length + ' total=' + data.total, panelX + 30, headerY + 52);
+      ctx.fillText('path=' + (d.pathname || '?').substring(0, 40), panelX + 30, headerY + 74);
+    }
 
     if (panelOpts.signedIn && data.nearby && data.nearby.length > 0) {
       const myEntry = data.nearby.find(e => e.isMe);
