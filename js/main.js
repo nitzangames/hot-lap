@@ -638,13 +638,15 @@ function fixedUpdate() {
       // Both are fire-and-forget — the finish screen renders immediately
       // and the panel populates async.
       leaderboard.clearFinishPanel();
+      console.log("finish: isNew=", isNew, "signedIn=", leaderboard.isSignedIn(), "hasSdk=", leaderboard.hasSdk(), "time=", gameState.raceTime);
+      document.title = "finish: new=" + isNew + " signedIn=" + leaderboard.isSignedIn() + " sdk=" + leaderboard.hasSdk();
       if (isNew) {
         leaderboard.submitIfBest(
           currentTrackIndex,
           gameState.raceTime,
           ghost.recording, // the just-completed run's raw frames
           { styleIndex: carConfig.styleIndex, hue: carConfig.hue }
-        ).catch(() => {});
+        ).catch((e) => { console.error("submitIfBest catch:", e); });
       }
       leaderboard.fetchFinishPanel(currentTrackIndex).catch(() => {});
     }
