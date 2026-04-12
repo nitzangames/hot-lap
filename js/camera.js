@@ -1,17 +1,11 @@
 import { GAME_W, GAME_H } from './constants.js';
 
-// Maximum camera rotation per frame (radians). Normal steering at max turn
-// rate produces ~0.042 rad/frame — well under this cap, so the camera
-// follows perfectly with zero lag during normal driving. A wall bounce
-// that jumps 20° (0.35 rad) takes ~5 frames to catch up — fast but smooth.
-const MAX_ROTATION_PER_FRAME = 0.07;
-
 export class Camera {
   constructor() {
     this.x = 0;
     this.y = 0;
     this.angle = 0;
-    this._firstFollow = true;
+    this._initialized = false;
   }
 
   /**
@@ -19,30 +13,28 @@ export class Camera {
    * starting a new track so the camera doesn't animate in from a stale angle.
    */
   reset() {
-    this._firstFollow = true;
+    this._initialized = false;
   }
 
   follow(x, y, angle) {
     this.x = x;
     this.y = y;
 
-    if (this._firstFollow) {
+    // First frame — snap (no previous angle to lerp from)
+    if (!this._initialized) {
       this.angle = angle;
-      this._firstFollow = false;
+      this._initialized = true;
       return;
     }
 
-    // Shortest-path delta, wrapped to [-π, π]
-    let delta = angle - this.angle;
-    if (delta > Math.PI) delta -= 2 * Math.PI;
-    else if (delta < -Math.PI) delta += 2 * Math.PI;
-
-    // Cap rotation speed so small changes follow instantly but large jumps
-    // (wall bounces) animate smoothly over several frames.
-    if (delta > MAX_ROTATION_PER_FRAME) delta = MAX_ROTATION_PER_FRAME;
-    else if (delta < -MAX_ROTATION_PER_FRAME) delta = -MAX_ROTATION_PER_FRAME;
-
-    this.angle += delta;
+    // Smooth follow — move 15% of the remaining difference each frame.
+    // Smooths both small physics jitters (which cause visible judder if
+    // snapped directly) and large wall-bounce angle jumps (~20°).
+    let diff = angle - this.angle;
+    // Normalize to [-PI, PI] so we lerp the short way around
+    while (diff > Math.PI) diff -= 2 * Math.PI;
+    while (diff < -Math.PI) diff += 2 * Math.PI;
+    this.angle += diff * 0.15;
   }
 
   apply(ctx) {
