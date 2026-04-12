@@ -542,7 +542,7 @@ export function drawTitleScreen(ctx, dt, styleIndex, hue) {
   // Version
   ctx.fillStyle = 'rgba(255,255,255,0.35)';
   ctx.font = '24px sans-serif';
-  ctx.fillText('v0.46', cx, GAME_H * 0.97);
+  ctx.fillText('v0.47', cx, GAME_H * 0.97);
 
   ctx.restore();
 
@@ -757,7 +757,14 @@ export function drawFinishScreen(ctx, raceTime, delta, isNewRecord, lb) {
       ctx.textAlign = 'left';
       ctx.fillText('sdk=' + d.hasSdk + ' sign=' + d.signedIn + ' slug=' + d.slugMatch, panelX + 30, headerY + 30);
       ctx.fillText('top=' + data.top.length + ' nearby=' + data.nearby.length + ' total=' + data.total, panelX + 30, headerY + 52);
-      ctx.fillText('path=' + (d.pathname || '?').substring(0, 40), panelX + 30, headerY + 74);
+      // Show raw HTTP response from direct fetch (bypasses PlaySDK error swallowing)
+      const rawDbg = data._rawDebug || '';
+      ctx.font = '14px monospace';
+      ctx.fillStyle = '#ff8888';
+      // Wrap long text across two lines
+      ctx.fillText(rawDbg.substring(0, 50), panelX + 30, headerY + 74);
+      ctx.fillText(rawDbg.substring(50, 100), panelX + 30, headerY + 90);
+      ctx.fillText(rawDbg.substring(100, 150), panelX + 30, headerY + 106);
     }
 
     if (panelOpts.signedIn && data.nearby && data.nearby.length > 0) {

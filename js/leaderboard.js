@@ -210,27 +210,34 @@ export async function fetchFinishPanel(trackIndex) {
   const sdk = window.PlaySDK;
   const board = boardName(trackIndex);
   try {
-    console.log("fetchFinishPanel: board=", board, "signedIn=", isSignedIn());
-    // Fetch top-N and around-me in parallel.
+    // Raw fetch to see actual HTTP status (PlaySDK swallows errors)
+    const rawUrl = 'https://play.nitzan.games/api/leaderboards/racing-2d/' + encodeURIComponent(board) + '?limit=' + LEADERBOARD_TOP_COUNT;
+    let rawDebug = '';
+    try {
+      const rawResp = await fetch(rawUrl);
+      const rawBody = await rawResp.text();
+      rawDebug = 'HTTP ' + rawResp.status + ' body=' + rawBody.substring(0, 120);
+    } catch (e) {
+      rawDebug = 'fetch err: ' + e.message;
+    }
+
+    // Normal SDK path
     const [topResp, aroundResp] = await Promise.all([
       sdk.getLeaderboard(board, LEADERBOARD_TOP_COUNT),
       isSignedIn()
         ? sdk.getLeaderboardAroundMe(board, LEADERBOARD_NEARBY_COUNT)
         : Promise.resolve(null),
     ]);
-    console.log("fetchFinishPanel topResp:", JSON.stringify(topResp));
-    console.log("fetchFinishPanel aroundResp:", JSON.stringify(aroundResp));
     const top = (topResp && topResp.entries) ? topResp.entries : [];
     const total = (topResp && topResp.total) || 0;
     const hasAttachment = !!(topResp && topResp.has_top_attachment);
     const nearby = (aroundResp && aroundResp.entries) ? aroundResp.entries : [];
-    const panel = { top, nearby, total, hasAttachment };
+    const panel = { top, nearby, total, hasAttachment, _rawDebug: rawDebug };
     cachedLeaderboardPanel = panel;
     return panel;
   } catch (e) {
-    console.error("fetchFinishPanel error:", e);
-    cachedLeaderboardPanel = null;
-    return null;
+    cachedLeaderboardPanel = { top: [], nearby: [], total: 0, hasAttachment: false, _rawDebug: 'catch: ' + e.message };
+    return cachedLeaderboardPanel;
   }
 }
 
