@@ -1,9 +1,10 @@
 import { GAME_W, GAME_H } from './constants.js';
 
-// Per-frame lerp factor toward the target angle. Higher = snappier camera,
-// lower = more "cinematic" lag but smoother recovery after sudden angle jumps
-// (e.g. glancing wall bounces that reflect the car's orientation).
-const ANGLE_LERP = 0.12;
+// Maximum camera rotation per frame (radians). Normal steering at max turn
+// rate produces ~0.042 rad/frame — well under this cap, so the camera
+// follows perfectly with zero lag during normal driving. A wall bounce
+// that jumps 20° (0.35 rad) takes ~5 frames to catch up — fast but smooth.
+const MAX_ROTATION_PER_FRAME = 0.07;
 
 export class Camera {
   constructor() {
@@ -36,7 +37,12 @@ export class Camera {
     if (delta > Math.PI) delta -= 2 * Math.PI;
     else if (delta < -Math.PI) delta += 2 * Math.PI;
 
-    this.angle += delta * ANGLE_LERP;
+    // Cap rotation speed so small changes follow instantly but large jumps
+    // (wall bounces) animate smoothly over several frames.
+    if (delta > MAX_ROTATION_PER_FRAME) delta = MAX_ROTATION_PER_FRAME;
+    else if (delta < -MAX_ROTATION_PER_FRAME) delta = -MAX_ROTATION_PER_FRAME;
+
+    this.angle += delta;
   }
 
   apply(ctx) {

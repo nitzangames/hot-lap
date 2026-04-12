@@ -631,16 +631,13 @@ function fixedUpdate() {
     finishDelayTimer += FIXED_DT;
     if (finishDelayTimer >= FINISH_DELAY) {
       gameState.finish(finishPreviousBest);
-      const isNew = ghost.saveIfBest(gameState.raceTime);
+      const isNew = ghost.saveIfBest(gameState.raceTime, carConfig.styleIndex, carConfig.hue);
       gameState.isNewRecord = isNew;
 
       // Leaderboard: submit if this is a new PB, and fetch the finish panel.
       // Both are fire-and-forget — the finish screen renders immediately
       // and the panel populates async.
       leaderboard.clearFinishPanel();
-      const diag = leaderboard.getDiagnostics();
-      console.log("finish: isNew=", isNew, "diag=", JSON.stringify(diag), "time=", gameState.raceTime);
-      document.title = "new=" + isNew + " sdk=" + diag.hasSdk + " sign=" + diag.signedIn + " slug=" + diag.slugMatch;
       if (isNew) {
         leaderboard.submitIfBest(
           currentTrackIndex,
@@ -692,7 +689,11 @@ function render() {
     if (ghostToggles.your) {
       const ghostFrame = ghost.getGhostFrame();
       if (ghostFrame) {
-        drawStyledCar(ctx, ghostFrame.x, ghostFrame.y, ghostFrame.angle, carConfig.styleIndex, carConfig.hue + 180, GHOST_ALPHA);
+        // Use the car style/hue that was saved with the ghost recording,
+        // falling back to current config if the ghost predates the save format.
+        const gStyle = ghost.bestStyleIndex != null ? ghost.bestStyleIndex : carConfig.styleIndex;
+        const gHue = ghost.bestHue != null ? ghost.bestHue : carConfig.hue;
+        drawStyledCar(ctx, ghostFrame.x, ghostFrame.y, ghostFrame.angle, gStyle, gHue, GHOST_ALPHA);
       }
     }
     if (ghostToggles.top && topGhost) {
@@ -782,7 +783,6 @@ function render() {
         signedIn: leaderboard.isSignedIn(),
         myPreviewRank: previewRanks ? previewRanks[currentTrackIndex] : null,
         currentTrackIndex,
-        diagnostics: leaderboard.getDiagnostics(),
       }
     );
   } else if (state === 'crashed') {
