@@ -15,6 +15,20 @@ let cachedTopGhosts = {};        // { [trackIndex]: frames[] | null }
 let cachedTopGhostPending = {};  // { [trackIndex]: Promise<frames[] | null> }
 let cachedLeaderboardPanel = null; // shaped finish-panel data for the current finish screen
 
+// ── Debug diagnostics ────────────────────────────────────────────────────────
+// Exposed via getDiagnostics() so the finish screen can show SDK state on mobile
+// where dev tools aren't easily available.
+
+export function getDiagnostics() {
+  const sdk = typeof window !== 'undefined' && window.PlaySDK;
+  return {
+    hasSdk: !!sdk,
+    signedIn: !!(sdk && sdk.isSignedIn),
+    pathname: typeof window !== 'undefined' ? window.location.pathname : '?',
+    slugMatch: typeof window !== 'undefined' ? (window.location.pathname.match(/\/games\/([^/]+)\//) || [null, null])[1] : null,
+  };
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Return the leaderboard board name for a track index. 0 → "track-01". */
@@ -192,10 +206,11 @@ export async function submitIfBest(trackIndex, timeMs, frames, extraMetadata) {
  * @returns {Promise<{top:Array, nearby:Array, total:number, hasAttachment:boolean}|null>}
  */
 export async function fetchFinishPanel(trackIndex) {
-  if (!hasSdk()) return null;
+  if (!hasSdk()) { console.log("fetchFinishPanel: no SDK"); return null; }
   const sdk = window.PlaySDK;
   const board = boardName(trackIndex);
   try {
+    console.log("fetchFinishPanel: board=", board, "signedIn=", isSignedIn());
     // Fetch top-N and around-me in parallel.
     const [topResp, aroundResp] = await Promise.all([
       sdk.getLeaderboard(board, LEADERBOARD_TOP_COUNT),
@@ -203,6 +218,8 @@ export async function fetchFinishPanel(trackIndex) {
         ? sdk.getLeaderboardAroundMe(board, LEADERBOARD_NEARBY_COUNT)
         : Promise.resolve(null),
     ]);
+    console.log("fetchFinishPanel topResp:", JSON.stringify(topResp));
+    console.log("fetchFinishPanel aroundResp:", JSON.stringify(aroundResp));
     const top = (topResp && topResp.entries) ? topResp.entries : [];
     const total = (topResp && topResp.total) || 0;
     const hasAttachment = !!(topResp && topResp.has_top_attachment);
@@ -210,7 +227,8 @@ export async function fetchFinishPanel(trackIndex) {
     const panel = { top, nearby, total, hasAttachment };
     cachedLeaderboardPanel = panel;
     return panel;
-  } catch (_) {
+  } catch (e) {
+    console.error("fetchFinishPanel error:", e);
     cachedLeaderboardPanel = null;
     return null;
   }

@@ -638,8 +638,9 @@ function fixedUpdate() {
       // Both are fire-and-forget — the finish screen renders immediately
       // and the panel populates async.
       leaderboard.clearFinishPanel();
-      console.log("finish: isNew=", isNew, "signedIn=", leaderboard.isSignedIn(), "hasSdk=", leaderboard.hasSdk(), "time=", gameState.raceTime);
-      document.title = "finish: new=" + isNew + " signedIn=" + leaderboard.isSignedIn() + " sdk=" + leaderboard.hasSdk();
+      const diag = leaderboard.getDiagnostics();
+      console.log("finish: isNew=", isNew, "diag=", JSON.stringify(diag), "time=", gameState.raceTime);
+      document.title = "new=" + isNew + " sdk=" + diag.hasSdk + " sign=" + diag.signedIn + " slug=" + diag.slugMatch;
       if (isNew) {
         leaderboard.submitIfBest(
           currentTrackIndex,
